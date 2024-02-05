@@ -1,6 +1,6 @@
 {
     "dist": "./dist",
     "cache": "./cache",
-    "packages": ["generator-oj-problem"],
+    "packages": ["generator-oj-problem", "python"],
     "worker": "package"
 }

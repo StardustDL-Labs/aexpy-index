@@ -76,6 +76,9 @@ class Processor:
     @cached_property
     def workerVersion(self):
         return self.worker.version()
+    
+    def hasDone(self, type: str, id: str):
+        return f"{type}:{id}" in self.db.data
 
     @contextmanager
     def doOnce(self, type: str, id: str):
@@ -102,14 +105,16 @@ class Processor:
                         "-",
                     ]
                 )
-                result.ensure().save(dis)
-                result.ensure().save(self.dist.preprocess(release))
+                result.save(dis)
+                result.save(self.dist.preprocess(release))
+                result.ensure()
         with self.doOnce(JOB_EXTRACT, str(release)) as _:
             if _ is None:
                 env.logger.info(f"Extract release {release}")
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
-                result.ensure().save(api)
-                result.ensure().save(self.dist.extract(release))
+                result.save(api)
+                result.save(self.dist.extract(release))
+                result.ensure()
 
     def pair(self, pair: ReleasePair):
         env.logger.info(f"Process release pair {pair}")
@@ -127,21 +132,27 @@ class Processor:
                         "-",
                     ]
                 )
-                result.ensure().save(cha)
-                result.ensure().save(self.dist.diff(pair))
+                result.save(cha)
+                result.save(self.dist.diff(pair))
+                result.ensure()
         with self.doOnce(JOB_REPORT, str(pair)) as _:
             if _ is None:
                 env.logger.info(f"Report releas pair {pair}")
                 result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
-                result.ensure().save(rep)
-                result.ensure().save(self.dist.report(pair))
+                result.save(rep)
+                result.save(self.dist.report(pair))
+                result.ensure()
+
+    def getReleases(self, project: str):
+        from .release import single
+        return single(project)
 
     def package(self, project: str):
-        from .release import single, pair
+        from .release import pair
 
         env.logger.info(f"Process package {project}")
 
-        releases = single(project)
+        releases = self.getReleases(project)
         env.logger.info(f"Find {len(releases)} releases: {releases}")
 
         doneReleases: list[Release] = []
@@ -172,11 +183,11 @@ class Processor:
         self.index(project)
 
     def index(self, project: str):
-        from .release import single, pair, sortedVersions
+        from .release import pair, sortedVersions
 
         env.logger.info(f"Index package {project}")
 
-        releases = single(project)
+        releases = self.getReleases(project)
         env.logger.info(f"Find {len(releases)} releases: {releases}")
 
         distributions = list(self.dist.distributions(project))
@@ -186,6 +197,7 @@ class Processor:
         reports = list(self.dist.reports(project))
 
         projectDir = self.dist.projectDir(project)
+        utils.ensureDirectory(projectDir)
         (projectDir / "index.json").write_text(
             json.dumps(
                 {
@@ -203,7 +215,12 @@ class Processor:
         doneProjects: list[str] = []
         for project in projects:
             try:
-                self.package(project)
+                if project != "python":
+                    self.package(project)
+                else:
+                    from .std import StdProcessor
+                    std = StdProcessor(self.db, self.dist)
+                    std.package(project)
                 doneProjects.append(project)
             except Exception as ex:
                 env.logger.error(f"Failed to process package: {project}", exc_info=ex)
