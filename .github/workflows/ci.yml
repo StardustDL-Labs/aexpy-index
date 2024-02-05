@@ -31,6 +31,10 @@ jobs:
       run: |
         git fetch origin gh-pages
         git worktree add ./dist gh-pages
+    - name: Force update
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      run: |
+        rm ./dist/process.json
     - name: Run
       run: |
         python -m index
