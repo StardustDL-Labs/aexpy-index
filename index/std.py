@@ -4,6 +4,7 @@ from typing import override
 from aexpy.environments.conda import CondaEnvironment, CondaEnvironmentBuilder
 from aexpy.extracting.environment import getExtractorEnvironmentBuilder
 from aexpy.models import Release, ReleasePair, ApiDescription
+from aexpy import utils
 
 from index.dist import DistPathBuilder
 from index.processor import ProcessDB
@@ -87,41 +88,43 @@ class StdProcessor(Processor):
                         totalResult: ApiDescription | None = None
                         totalLog = ""
 
-                        for module in modules:
-                            env.logger.info(f"Process stdlib: {module}")
-                            result = self.worker.preprocess(
-                                [
-                                    "-s",
-                                    str(rootPath),
-                                    "-p",
-                                    str(release),
-                                    "-P",
-                                    release.version,
-                                    "-m",
-                                    module,
-                                    "-",
-                                ],
-                                check=True,
-                            )
-                            result = self.worker.extract(
-                                ["-", "-", "-e", e.name], input=result.out
-                            )
-                            totalLog += result.log
+                        with utils.elapsedTimer() as timer:
+                            for module in modules:
+                                env.logger.info(f"Process stdlib: {module}")
+                                result = self.worker.preprocess(
+                                    [
+                                        "-s",
+                                        str(rootPath),
+                                        "-p",
+                                        str(release),
+                                        "-P",
+                                        release.version,
+                                        "-m",
+                                        module,
+                                        "-",
+                                    ],
+                                    check=True,
+                                )
+                                result = self.worker.extract(
+                                    ["-", "-", "-e", e.name], input=result.out
+                                )
+                                totalLog += result.log
 
-                            if result.data is None:
-                                continue
+                                if result.data is None:
+                                    continue
 
-                            if totalResult is None:
-                                totalResult = result.data
-                            else:
-                                for entry in result.data.entries.values():
-                                    if entry.id not in totalResult.entries:
-                                        totalResult.addEntry(entry)
+                                if totalResult is None:
+                                    totalResult = result.data
+                                else:
+                                    for entry in result.data.entries.values():
+                                        if entry.id not in totalResult.entries:
+                                            totalResult.addEntry(entry)
                         if totalResult is None:
                             finalResult = AexPyResult(
                                 code=1, log="Failed to dump", out=""
                             )
                         else:
+                            totalResult.duration = timer()
                             finalResult = AexPyResult(
                                 out=totalResult.model_dump_json(), log=totalLog, code=0
                             )
