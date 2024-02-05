@@ -42,7 +42,9 @@ class ProcessDB(BaseModel):
             raise
 
     def done(self, job: str, version: str, state: ProcessState):
-        self.data[job] = ProcessResult(version=version, state=state, time=datetime.datetime.now())
+        self.data[job] = ProcessResult(
+            version=version, state=state, time=datetime.datetime.now()
+        )
 
     def save(self):
         self.path.write_text(self.model_dump_json())
@@ -198,8 +200,8 @@ class Processor:
         pairs = list(pair(apis))
         doneChanges = {str(x) for x in self.dist.changes(project)}
         doneReports = {str(x) for x in self.dist.reports(project)}
-        changes = [x for x in pairs if x in doneChanges]
-        reports = [x for x in pairs if x in doneReports]
+        changes = [x for x in pairs if str(x) in doneChanges]
+        reports = [x for x in pairs if str(x) in doneReports]
 
         projectDir = self.dist.projectDir(project)
         utils.ensureDirectory(projectDir)

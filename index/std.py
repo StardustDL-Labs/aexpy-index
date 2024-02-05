@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import override
 from aexpy.environments.conda import CondaEnvironment, CondaEnvironmentBuilder
 from aexpy.extracting.environment import getExtractorEnvironmentBuilder
-from aexpy.models import Release, ReleasePair
+from aexpy.models import Release, ReleasePair, ApiDescription
 
 from index.dist import DistPathBuilder
 from index.processor import ProcessDB
@@ -16,13 +16,15 @@ from .processor import (
     JOB_REPORT,
     Processor,
 )
-from .aexpyw import AexPyWorker
+from .aexpyw import AexPyResult, AexPyWorker
 from . import env
 
 IGNORED_MODULES = {"antigravity"}
+CONSIDERED_MODULES = ["sys", "os", "pathlib", "math"]
 
 
 def getTopModules(path: Path):
+    # return CONSIDERED_MODULES
     for p in path.glob("*"):
         if p.stem.startswith("_") or "-" in p.stem or p.stem in IGNORED_MODULES:
             continue
@@ -34,7 +36,7 @@ def removeMain(path: Path):
     for item in path.glob("**/__main__.py"):
         if not item.is_file():
             continue
-        if "pip" in item.parts:
+        if "site-packages" in item.parts:
             continue
         toRemove.append(item)
     env.logger.info(f"Remove __main__.py: {toRemove}")
@@ -49,9 +51,7 @@ class StdProcessor(Processor):
 
     @override
     def version(self, release):
-        need = not self.hasDone(JOB_PREPROCESS, str(release)) or not self.hasDone(
-            JOB_EXTRACT, str(release)
-        )
+        need = not self.hasDone(JOB_EXTRACT, str(release))
         if not need:
             return
 
@@ -60,13 +60,14 @@ class StdProcessor(Processor):
 
         with self.envBuilder.use(release.version, logger=env.logger) as e:
             with e as r:
-                pathRes = r.runPythonText(
-                    '-c "import pathlib; print(pathlib.__file__)"', check=True
-                )
-                rootPath = Path(pathRes.stdout.strip()).parent
-                modules = sum([["-m", s] for s in getTopModules(rootPath)], start=[])
-                with self.doOnce(JOB_PREPROCESS, str(release)) as _:
+                with self.doOnce(JOB_EXTRACT, str(release)) as _:
                     if _ is None:
+                        pathRes = r.runPythonText(
+                            '-c "import pathlib; print(pathlib.__file__)"', check=True
+                        )
+                        rootPath = Path(pathRes.stdout.strip()).parent
+                        modules = list(getTopModules(rootPath))
+
                         result = self.worker.preprocess(
                             [
                                 "-s",
@@ -75,20 +76,59 @@ class StdProcessor(Processor):
                                 str(release),
                                 "-P",
                                 release.version,
-                                *modules,
+                                *sum([["-m", m] for m in modules], start=[]),
                                 "-",
                             ]
                         )
                         result.save(dis)
                         result.save(self.dist.preprocess(release))
                         result.ensure()
-                removeMain(rootPath)
-                with self.doOnce(JOB_EXTRACT, str(release)) as _:
-                    if _ is None:
-                        result = self.worker.extract([str(dis), "-", "-e", e.name])
-                        result.save(api)
-                        result.save(self.dist.extract(release))
-                        result.ensure()
+
+                        removeMain(rootPath)
+
+                        totalResult: ApiDescription | None = None
+                        totalLog = ""
+
+                        for module in modules:
+                            result = self.worker.preprocess(
+                                [
+                                    "-s",
+                                    str(rootPath),
+                                    "-p",
+                                    str(release),
+                                    "-P",
+                                    release.version,
+                                    "-m",
+                                    module,
+                                    "-",
+                                ],
+                                check=True,
+                            )
+                            result = self.worker.extract(
+                                ["-", "-", "-e", e.name], input=result.out
+                            )
+                            totalLog += result.log
+
+                            if result.data is None:
+                                continue
+
+                            if totalResult is None:
+                                totalResult = result.data
+                            else:
+                                for entry in result.data.entries.values():
+                                    totalResult.addEntry(entry)
+                        if totalResult is None:
+                            finalResult = AexPyResult(
+                                code=1, log="Failed to dump", out=""
+                            )
+                        else:
+                            finalResult = AexPyResult(
+                                out=totalResult.model_dump_json(), log=totalLog, code=0
+                            )
+
+                        finalResult.save(api)
+                        finalResult.save(self.dist.extract(release))
+                        finalResult.ensure()
 
     @override
     def pair(self, pair):
