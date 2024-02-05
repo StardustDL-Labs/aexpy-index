@@ -82,8 +82,7 @@ class Processor:
         with self.db.do(f"{type}:{id}", self.workerVersion) as res:
             if res:
                 assert res.state == ProcessState.SUCCESS, "Not success"
-                return
-            yield
+            yield res
 
     def version(self, release: Release):
         env.logger.info(f"Process release {release}")
@@ -91,18 +90,20 @@ class Processor:
         api = self.cacheDist.extract(release)
         wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
         utils.ensureDirectory(wheelDir)
-        with self.doOnce(JOB_PREPROCESS, str(release)):
-            env.logger.info(f"Preprocess release {release}")
-            result = self.worker.preprocess(
-                ["-r", "-p", str(release), str(self.worker.resolvePath(wheelDir)), "-"]
-            )
-            result.ensure().save(dis)
-            result.ensure().save(self.dist.preprocess(release))
-        with self.doOnce(JOB_EXTRACT, str(release)):
-            env.logger.info(f"Extract release {release}")
-            result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
-            result.ensure().save(api)
-            result.ensure().save(self.dist.extract(release))
+        with self.doOnce(JOB_PREPROCESS, str(release)) as _:
+            if _ is None:
+                env.logger.info(f"Preprocess release {release}")
+                result = self.worker.preprocess(
+                    ["-r", "-p", str(release), str(self.worker.resolvePath(wheelDir)), "-"]
+                )
+                result.ensure().save(dis)
+                result.ensure().save(self.dist.preprocess(release))
+        with self.doOnce(JOB_EXTRACT, str(release)) as _:
+            if _ is None:
+                env.logger.info(f"Extract release {release}")
+                result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
+                result.ensure().save(api)
+                result.ensure().save(self.dist.extract(release))
 
     def pair(self, pair: ReleasePair):
         env.logger.info(f"Process release pair {pair}")
@@ -110,22 +111,24 @@ class Processor:
         new = self.cacheDist.extract(pair.new)
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
-        with self.doOnce(JOB_DIFF, str(pair)):
-            env.logger.info(f"Diff releas pair {pair}")
-            result = self.worker.diff(
-                [
-                    str(self.worker.resolvePath(old)),
-                    str(self.worker.resolvePath(new)),
-                    "-",
-                ]
-            )
-            result.ensure().save(cha)
-            result.ensure().save(self.dist.diff(pair))
-        with self.doOnce(JOB_REPORT, str(pair)):
-            env.logger.info(f"Report releas pair {pair}")
-            result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
-            result.ensure().save(rep)
-            result.ensure().save(self.dist.report(pair))
+        with self.doOnce(JOB_DIFF, str(pair)) as _:
+            if _ is None:
+                env.logger.info(f"Diff releas pair {pair}")
+                result = self.worker.diff(
+                    [
+                        str(self.worker.resolvePath(old)),
+                        str(self.worker.resolvePath(new)),
+                        "-",
+                    ]
+                )
+                result.ensure().save(cha)
+                result.ensure().save(self.dist.diff(pair))
+        with self.doOnce(JOB_REPORT, str(pair)) as _:
+            if _ is None:
+                env.logger.info(f"Report releas pair {pair}")
+                result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
+                result.ensure().save(rep)
+                result.ensure().save(self.dist.report(pair))
 
     def package(self, project: str):
         from .release import single, pair
