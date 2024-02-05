@@ -29,11 +29,5 @@ if __name__ == "__main__":
     env.logger.info(f"Current AexPy version: {worker.version()}")
 
     processor = Processor(worker, db, DistPathBuilder(env.dist))
-
-    for package in conf.packages:
-        try:
-            processor.package(package)
-        except Exception as ex:
-            env.logger.error(f"Failed to process package: {package}", exc_info=ex)
-
-        db.save()
+    processor.packages(*conf.packages)
+    db.save()

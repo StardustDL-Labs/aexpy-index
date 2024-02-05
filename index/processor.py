@@ -94,7 +94,13 @@ class Processor:
             if _ is None:
                 env.logger.info(f"Preprocess release {release}")
                 result = self.worker.preprocess(
-                    ["-r", "-p", str(release), str(self.worker.resolvePath(wheelDir)), "-"]
+                    [
+                        "-r",
+                        "-p",
+                        str(release),
+                        str(self.worker.resolvePath(wheelDir)),
+                        "-",
+                    ]
                 )
                 result.ensure().save(dis)
                 result.ensure().save(self.dist.preprocess(release))
@@ -190,3 +196,13 @@ class Processor:
                 }
             )
         )
+
+    def packages(self, *projects: str):
+        doneProjects: list[str] = []
+        for project in projects:
+            try:
+                self.package(project)
+                doneProjects.append(project)
+            except Exception as ex:
+                env.logger.error(f"Failed to process package: {project}", exc_info=ex)
+        (env.dist / "packages.json").write_text(json.dumps(doneProjects))
