@@ -1,5 +1,6 @@
 {
     "dist": "./dist",
     "cache": "./cache",
-    "packages": ["generator-oj-problem"]
+    "packages": ["generator-oj-problem"],
+    "worker": "package"
 }

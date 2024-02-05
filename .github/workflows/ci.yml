@@ -8,7 +8,7 @@ defaults:
     shell: pwsh
 
 jobs:
-  package:
+  build:
     runs-on: ubuntu-latest
     env:
       PYTHONUTF8: 1
@@ -21,14 +21,27 @@ jobs:
       with:
         auto-update-conda: true
         python-version: "3.12"
-    - name: Install dependencies
+    - name: Prepare env
       run: |
-        python -m pip install -r ./requirements
+        python -m pip install -r ./requirements.txt
+        sed -i 's/\"package\"/\"image\"/' ./config.json
     - name: Run
       run: |
         python -m index
-    - name: Upload dist
-      uses: actions/upload-artifact@v4
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v2
       with:
-        name: dist
         path: ./dist
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
