@@ -34,9 +34,10 @@ def removeMain(path: Path):
     for item in path.glob("**/__main__.py"):
         if not item.is_file():
             continue
-        if "pip" in path.parts:
+        if "pip" in item.parts:
             continue
         toRemove.append(item)
+    env.logger.info(f"Remove __main__.py: {toRemove}")
     for item in toRemove:
         os.remove(item)
 

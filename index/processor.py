@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import datetime
 from functools import cached_property
 import json
 from pathlib import Path
@@ -20,6 +21,7 @@ class ProcessState(IntEnum):
 class ProcessResult(BaseModel):
     version: str
     state: ProcessState
+    time: datetime.datetime
 
 
 class ProcessDB(BaseModel):
@@ -40,7 +42,7 @@ class ProcessDB(BaseModel):
             raise
 
     def done(self, job: str, version: str, state: ProcessState):
-        self.data[job] = ProcessResult(version=version, state=state)
+        self.data[job] = ProcessResult(version=version, state=state, time=datetime.datetime.now())
 
     def save(self):
         self.path.write_text(self.model_dump_json())
