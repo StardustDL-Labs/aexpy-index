@@ -19,61 +19,10 @@ from .processor import (
 from .aexpyw import AexPyResult, AexPyWorker
 from . import env
 
-IGNORED_MODULES = {"antigravity"}
-CONSIDERED_MODULES = [
-    "sys",
-    "os",
-    "pathlib",
-    "math",
-    "cmath",
-    "typing",
-    "ast",
-    "inspect",
-    "argparse",
-    "shutil",
-    "zipfile",
-    "urllib",
-    "string",
-    "re",
-    "textwrap",
-    "codecs",
-    "datetime",
-    "calendar",
-    "collections",
-    "heapq",
-    "bisect",
-    "array",
-    "copy",
-    "graphlib",
-    "enum",
-    "random",
-    "statistics",
-    "fractions",
-    "decimal",
-    "functools",
-    "itertools",
-    "operator",
-    "tempfile",
-    "glob",
-    "pickle",
-    "marshal",
-    "sqlite3",
-    "dbm",
-    "zlib",
-    "gzip",
-    "bz2",
-    "base64",
-    "lzma",
-    "tarfile",
-    "logging",
-    "io",
-    "time",
-    "getopt",
-]
+IGNORED_MODULES = {"LICENSE"}
 
 
 def getTopModules(path: Path):
-    # return CONSIDERED_MODULES
     for p in path.glob("*"):
         if p.stem.startswith("_") or "-" in p.stem or p.stem in IGNORED_MODULES:
             continue
@@ -208,4 +157,4 @@ class StdProcessor(Processor):
 
     @override
     def getReleases(self, project):
-        return [Release(project="python", version=f"3.{x}") for x in range(12, 13)]
+        return [Release(project="python", version=f"3.{x}") for x in range(8, 13)]

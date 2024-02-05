@@ -32,7 +32,7 @@ jobs:
         git fetch origin gh-pages
         git worktree add ./dist gh-pages
     - name: Force update
-      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[update]') }}
       run: |
         rm ./dist/process.json
     - name: Run
