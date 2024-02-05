@@ -172,7 +172,7 @@ class Processor:
         self.index(project)
 
     def index(self, project: str):
-        from .release import single, pair
+        from .release import single, pair, sortedVersions
 
         env.logger.info(f"Index package {project}")
 
@@ -181,6 +181,7 @@ class Processor:
 
         distributions = list(self.dist.distributions(project))
         apis = list(self.dist.apis(project))
+        pairs = list(pair(sortedVersions(apis)))
         changes = list(self.dist.changes(project))
         reports = list(self.dist.reports(project))
 
@@ -191,6 +192,7 @@ class Processor:
                     "releases": [str(r) for r in releases],
                     "distributions": [str(r) for r in distributions],
                     "apis": [str(r) for r in apis],
+                    "pairs": [str(r) for r in pairs],
                     "changes": [str(r) for r in changes],
                     "reports": [str(r) for r in reports],
                 }

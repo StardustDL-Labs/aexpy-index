@@ -60,6 +60,30 @@ def compareVersion(a, b):
     else:
         return 0
 
+def sortedVersions(releases: list[Release]):
+    versions = releases.copy()
+    try:
+        versions.sort(
+            key=functools.cmp_to_key(lambda x, y: compareVersion(x.version, y.version))
+        )
+    except Exception as ex:
+        versions = releases.copy()
+        env.logger.error(
+            f"Failed to sort versions by packaging.version: {versions}", exc_info=ex
+        )
+        try:
+            versions.sort(
+                key=functools.cmp_to_key(
+                    lambda x, y: semver.compare(x.version, y.version)
+                )
+            )
+        except Exception as ex:
+            versions = releases.copy()
+            env.logger.error(
+                f"Failed to sort versions by semver: {versions}", exc_info=ex
+            )
+    return versions
+
 
 def single(project: str, filter: Callable[[Release], bool] | None = None):
     raw = getReleases(project)
@@ -71,29 +95,7 @@ def single(project: str, filter: Callable[[Release], bool] | None = None):
                 continue
         rels.append(rel)
 
-    versions = rels.copy()
-    try:
-        versions.sort(
-            key=functools.cmp_to_key(lambda x, y: compareVersion(x.version, y.version))
-        )
-    except Exception as ex:
-        versions = rels.copy()
-        env.logger.error(
-            f"Failed to sort versions by packaging.version: {versions}", exc_info=ex
-        )
-        try:
-            versions.sort(
-                key=functools.cmp_to_key(
-                    lambda x, y: semver.compare(x.version, y.version)
-                )
-            )
-        except Exception as ex:
-            versions = rels.copy()
-            env.logger.error(
-                f"Failed to sort versions by semver: {versions}", exc_info=ex
-            )
-
-    return versions
+    return sortedVersions(rels)
 
 
 def pair(releases: list[Release], filter: Callable[[ReleasePair], bool] | None = None):
