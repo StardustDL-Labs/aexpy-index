@@ -4,6 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import override
 from aexpy.models import Product, Distribution, ApiDescription, ApiDifference, Report
+import aexpy
 from . import env
 import sys
 
@@ -84,7 +85,7 @@ class AexPyDockerWorker(AexPyWorker):
             "-v",
             f"{str(env.cache.resolve())}:/data",
             "--rm",
-            "stardustdl/aexpy:latest",
+            f"stardustdl/aexpy:{aexpy.__version__}",
         ]
 
     @override

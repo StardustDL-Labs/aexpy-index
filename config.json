@@ -1,6 +1,17 @@
 {
     "dist": "./dist",
     "cache": "./cache",
-    "packages": ["generator-oj-problem", "python"],
+    "packages": [
+        "python",
+        "aexpy",
+        "generator-oj-problem",
+        "coxbuild",
+        "click",
+        "Flask",
+        "requests",
+        "tornado",
+        "PyYAML",
+        "jinja2"
+    ],
     "worker": "package"
 }
