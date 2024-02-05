@@ -76,7 +76,7 @@ class Processor:
     @cached_property
     def workerVersion(self):
         return self.worker.version()
-    
+
     def hasDone(self, type: str, id: str):
         return f"{type}:{id}" in self.db.data
 
@@ -145,6 +145,7 @@ class Processor:
 
     def getReleases(self, project: str):
         from .release import single
+
         return single(project)
 
     def package(self, project: str):
@@ -183,18 +184,20 @@ class Processor:
         self.index(project)
 
     def index(self, project: str):
-        from .release import pair, sortedVersions
+        from .release import pair, sortedReleases
 
         env.logger.info(f"Index package {project}")
 
-        releases = self.getReleases(project)
+        releases = sortedReleases(self.getReleases(project))
         env.logger.info(f"Find {len(releases)} releases: {releases}")
 
-        distributions = list(self.dist.distributions(project))
-        apis = list(self.dist.apis(project))
-        pairs = list(pair(sortedVersions(apis)))
-        changes = list(self.dist.changes(project))
-        reports = list(self.dist.reports(project))
+        distributions = sortedReleases(self.dist.distributions(project))
+        apis = sortedReleases(self.dist.apis(project))
+        pairs = list(pair(apis))
+        doneChanges = {str(x) for x in self.dist.changes(project)}
+        doneReports = {str(x) for x in self.dist.reports(project)}
+        changes = [x for x in pairs if x in doneChanges]
+        reports = [x for x in pairs if x in doneReports]
 
         projectDir = self.dist.projectDir(project)
         utils.ensureDirectory(projectDir)
@@ -219,6 +222,7 @@ class Processor:
                     self.package(project)
                 else:
                     from .std import StdProcessor
+
                     std = StdProcessor(self.db, self.dist)
                     std.package(project)
                 doneProjects.append(project)

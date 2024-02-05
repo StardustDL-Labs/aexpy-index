@@ -19,22 +19,25 @@ from .processor import (
 from .aexpyw import AexPyWorker
 from . import env
 
+IGNORED_MODULES = {"antigravity"}
+
 
 def getTopModules(path: Path):
     for p in path.glob("*"):
-        if p.stem.startswith("_") or "-" in p.stem:
+        if p.stem.startswith("_") or "-" in p.stem or p.stem in IGNORED_MODULES:
             continue
         yield p.stem
 
+
 def removeMain(path: Path):
     toRemove: list[Path] = []
-    for item, _, _ in path.walk():
+    for item in path.glob("**/__main__.py"):
         if not item.is_file():
             continue
-        if item.stem == "__main__" and item.suffix == ".py":
-            toRemove.append(item)
+        toRemove.append(item)
     for item in toRemove:
         os.remove(item)
+
 
 class StdProcessor(Processor):
     def __init__(self, db: ProcessDB, dist: DistPathBuilder) -> None:
@@ -43,10 +46,12 @@ class StdProcessor(Processor):
 
     @override
     def version(self, release):
-        need = not self.hasDone(JOB_PREPROCESS, str(release)) or not self.hasDone(JOB_EXTRACT, str(release))
+        need = not self.hasDone(JOB_PREPROCESS, str(release)) or not self.hasDone(
+            JOB_EXTRACT, str(release)
+        )
         if not need:
             return
-        
+
         dis = self.cacheDist.preprocess(release)
         api = self.cacheDist.extract(release)
 
@@ -84,7 +89,9 @@ class StdProcessor(Processor):
 
     @override
     def pair(self, pair):
-        need = not self.hasDone(JOB_DIFF, str(pair)) or not self.hasDone(JOB_REPORT, str(pair))
+        need = not self.hasDone(JOB_DIFF, str(pair)) or not self.hasDone(
+            JOB_REPORT, str(pair)
+        )
         if not need:
             return
 

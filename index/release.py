@@ -1,6 +1,6 @@
 from datetime import datetime
 import functools
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 import requests
 from . import env
 import json
@@ -60,14 +60,16 @@ def compareVersion(a, b):
     else:
         return 0
 
-def sortedVersions(releases: list[Release]):
-    versions = releases.copy()
+
+def sortedReleases(releases: Iterable[Release]):
+    origin = list(releases)
+    versions = origin.copy()
     try:
         versions.sort(
             key=functools.cmp_to_key(lambda x, y: compareVersion(x.version, y.version))
         )
     except Exception as ex:
-        versions = releases.copy()
+        versions = origin.copy()
         env.logger.error(
             f"Failed to sort versions by packaging.version: {versions}", exc_info=ex
         )
@@ -78,7 +80,7 @@ def sortedVersions(releases: list[Release]):
                 )
             )
         except Exception as ex:
-            versions = releases.copy()
+            versions = origin.copy()
             env.logger.error(
                 f"Failed to sort versions by semver: {versions}", exc_info=ex
             )
@@ -95,7 +97,7 @@ def single(project: str, filter: Callable[[Release], bool] | None = None):
                 continue
         rels.append(rel)
 
-    return sortedVersions(rels)
+    return sortedReleases(rels)
 
 
 def pair(releases: list[Release], filter: Callable[[ReleasePair], bool] | None = None):
