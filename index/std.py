@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import override
 from aexpy.environments.conda import CondaEnvironment, CondaEnvironmentBuilder
@@ -25,6 +26,15 @@ def getTopModules(path: Path):
             continue
         yield p.stem
 
+def removeMain(path: Path):
+    toRemove: list[Path] = []
+    for item, _, _ in path.walk():
+        if not item.is_file():
+            continue
+        if item.stem == "__main__" and item.suffix == ".py":
+            toRemove.append(item)
+    for item in toRemove:
+        os.remove(item)
 
 class StdProcessor(Processor):
     def __init__(self, db: ProcessDB, dist: DistPathBuilder) -> None:
@@ -64,6 +74,7 @@ class StdProcessor(Processor):
                         result.save(dis)
                         result.save(self.dist.preprocess(release))
                         result.ensure()
+                removeMain(rootPath)
                 with self.doOnce(JOB_EXTRACT, str(release)) as _:
                     if _ is None:
                         result = self.worker.extract([str(dis), "-", "-e", e.name])
