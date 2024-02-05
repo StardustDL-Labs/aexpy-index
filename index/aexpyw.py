@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import subprocess
 from dataclasses import dataclass
+from typing import override
 from aexpy.models import Product, Distribution, ApiDescription, ApiDifference, Report
 from . import env
 import sys
@@ -27,11 +28,15 @@ class AexPyResult[T: Product]:
 
 
 class AexPyWorker:
-    __command_prefix__ = ["aexpy"]
+    def getCommandPrefix(self):
+        return ["aexpy"]
+
+    def resolvePath(self, path: Path):
+        return path
 
     def run(self, args: list[str], **kwargs):
         return subprocess.run(
-            self.__command_prefix__ + ["-vvvvv"] + args,
+            self.getCommandPrefix() + ["-vvvvv"] + args,
             text=True,
             encoding="utf-8",
             capture_output=True,
@@ -71,4 +76,17 @@ class AexPyWorker:
 
 
 class AexPyDockerWorker(AexPyWorker):
-    __command_prefix__ = ["docker", "run", "--rm", "stardustdl/aexpy:latest"]
+    @override
+    def getCommandPrefix(self):
+        return [
+            "docker",
+            "run",
+            "-v",
+            f"{str(env.cache.resolve())}:/data",
+            "--rm",
+            "stardustdl/aexpy:latest",
+        ]
+
+    @override
+    def resolvePath(self, path):
+        return Path("/data/").joinpath(path.relative_to(env.cache))

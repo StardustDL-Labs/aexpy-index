@@ -26,7 +26,8 @@ class DistPathBuilder:
             pair.old.project == pair.new.project
         ), f"ReleasePair not same project: {pair}"
         return self.safeFilePath(
-            self.changeDir(pair.old.project) / f"{pair.old.version}&{pair.new.version}.json"
+            self.changeDir(pair.old.project)
+            / f"{pair.old.version}&{pair.new.version}.json"
         )
 
     def report(self, pair: ReleasePair):
@@ -34,24 +35,25 @@ class DistPathBuilder:
             pair.old.project == pair.new.project
         ), f"ReleasePair not same project: {pair}"
         return self.safeFilePath(
-            self.reportDir(pair.old.project) / f"{pair.old.version}&{pair.new.version}.json"
+            self.reportDir(pair.old.project)
+            / f"{pair.old.version}&{pair.new.version}.json"
         )
-    
+
     def projectDir(self, project: str):
         return self.root / project
 
     def distributionDir(self, project: str):
         return self.projectDir(project) / "distributions"
-    
+
     def apiDir(self, project: str):
         return self.projectDir(project) / "apis"
-    
+
     def changeDir(self, project: str):
         return self.projectDir(project) / "changes"
-    
+
     def reportDir(self, project: str):
         return self.projectDir(project) / "reports"
-    
+
     def distributions(self, project: str):
         dir = self.distributionDir(project)
         if not dir.is_dir():
@@ -72,14 +74,18 @@ class DistPathBuilder:
             return
         for item in dir.glob("*.json"):
             old, new = item.stem.split("&", maxsplit=1)
-            yield ReleasePair(old=Release(project=project, version=old), new=Release(project=project, version=new))
-    
+            yield ReleasePair(
+                old=Release(project=project, version=old),
+                new=Release(project=project, version=new),
+            )
+
     def reports(self, project: str):
         dir = self.reportDir(project)
         if not dir.is_dir():
             return
         for item in dir.glob("*.json"):
             old, new = item.stem.split("&", maxsplit=1)
-            yield ReleasePair(old=Release(project=project, version=old), new=Release(project=project, version=new))
-        
-    
+            yield ReleasePair(
+                old=Release(project=project, version=old),
+                new=Release(project=project, version=new),
+            )

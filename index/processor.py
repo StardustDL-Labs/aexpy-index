@@ -9,6 +9,7 @@ from aexpy.models import Release, ReleasePair
 from pydantic import BaseModel
 from enum import IntEnum
 from . import env
+from aexpy import utils
 
 
 class ProcessState(IntEnum):
@@ -70,6 +71,7 @@ class Processor:
         self.worker = worker
         self.db = db
         self.dist = dist
+        self.cacheDist = DistPathBuilder(env.cache)
 
     @cached_property
     def workerVersion(self):
@@ -85,33 +87,45 @@ class Processor:
 
     def version(self, release: Release):
         env.logger.info(f"Process release {release}")
-        dis = self.dist.preprocess(release)
-        api = self.dist.extract(release)
+        dis = self.cacheDist.preprocess(release)
+        api = self.cacheDist.extract(release)
+        wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
+        utils.ensureDirectory(wheelDir)
         with self.doOnce(JOB_PREPROCESS, str(release)):
             env.logger.info(f"Preprocess release {release}")
             result = self.worker.preprocess(
-                ["-r", "-p", str(release), str(env.cache), "-"]
+                ["-r", "-p", str(release), str(self.worker.resolvePath(wheelDir)), "-"]
             )
             result.ensure().save(dis)
+            result.ensure().save(self.dist.preprocess(release))
         with self.doOnce(JOB_EXTRACT, str(release)):
             env.logger.info(f"Extract release {release}")
-            result = self.worker.extract([str(dis), "-"])
+            result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
             result.ensure().save(api)
+            result.ensure().save(self.dist.extract(release))
 
     def pair(self, pair: ReleasePair):
         env.logger.info(f"Process release pair {pair}")
-        old = self.dist.extract(pair.old)
-        new = self.dist.extract(pair.new)
-        cha = self.dist.diff(pair)
-        rep = self.dist.report(pair)
+        old = self.cacheDist.extract(pair.old)
+        new = self.cacheDist.extract(pair.new)
+        cha = self.cacheDist.diff(pair)
+        rep = self.cacheDist.report(pair)
         with self.doOnce(JOB_DIFF, str(pair)):
             env.logger.info(f"Diff releas pair {pair}")
-            result = self.worker.diff([str(old), str(new), "-"])
+            result = self.worker.diff(
+                [
+                    str(self.worker.resolvePath(old)),
+                    str(self.worker.resolvePath(new)),
+                    "-",
+                ]
+            )
             result.ensure().save(cha)
+            result.ensure().save(self.dist.diff(pair))
         with self.doOnce(JOB_REPORT, str(pair)):
             env.logger.info(f"Report releas pair {pair}")
-            result = self.worker.report([str(cha), "-"])
+            result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
             result.ensure().save(rep)
+            result.ensure().save(self.dist.report(pair))
 
     def package(self, project: str):
         from .release import single, pair
@@ -145,11 +159,12 @@ class Processor:
                 donePairs.append(rp)
             except Exception as ex:
                 env.logger.error(f"Failed to process {rp}", exc_info=ex)
-        
+
         self.index(project)
 
     def index(self, project: str):
         from .release import single, pair
+
         env.logger.info(f"Index package {project}")
 
         releases = single(project)
@@ -161,10 +176,14 @@ class Processor:
         reports = list(self.dist.reports(project))
 
         projectDir = self.dist.projectDir(project)
-        (projectDir / "index.json").write_text(json.dumps({
-            "releases": [str(r) for r in releases],
-            "distributions": [str(r) for r in distributions],
-            "apis": [str(r) for r in apis],
-            "changes": [str(r) for r in changes],
-            "reports": [str(r) for r in reports],
-        }))
+        (projectDir / "index.json").write_text(
+            json.dumps(
+                {
+                    "releases": [str(r) for r in releases],
+                    "distributions": [str(r) for r in distributions],
+                    "apis": [str(r) for r in apis],
+                    "changes": [str(r) for r in changes],
+                    "reports": [str(r) for r in reports],
+                }
+            )
+        )

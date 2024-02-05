@@ -2,13 +2,15 @@ name: CI
 
 on:
   push:
+  schedule:
+    - cron: "0 8 * * *"
 
 defaults:
   run:
     shell: pwsh
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
     env:
       PYTHONUTF8: 1
@@ -17,31 +19,29 @@ jobs:
       uses: actions/checkout@v4
       with:
         persist-credentials: false
-    - uses: conda-incubator/setup-miniconda@v3
+    - uses: actions/setup-python@v5
       with:
-        auto-update-conda: true
-        python-version: "3.12"
+        python-version: '3.12'
+        architecture: 'x64'
     - name: Prepare env
       run: |
         python -m pip install -r ./requirements.txt
         sed -i 's/\"package\"/\"image\"/' ./config.json
+    - name: Checkout pages
+      run: |
+        git fetch origin gh-pages
+        git worktree add ./dist gh-pages
     - name: Run
       run: |
         python -m index
-    - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v2
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
+        name: dist
         path: ./dist
-  deploy:
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    - name: Deploy GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        token: ${{ secrets.PA_TOKEN }}
+        branch: gh-pages
+        folder: ./dist
