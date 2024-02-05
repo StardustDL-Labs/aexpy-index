@@ -20,7 +20,56 @@ from .aexpyw import AexPyResult, AexPyWorker
 from . import env
 
 IGNORED_MODULES = {"antigravity"}
-CONSIDERED_MODULES = ["sys", "os", "pathlib", "math"]
+CONSIDERED_MODULES = [
+    "sys",
+    "os",
+    "pathlib",
+    "math",
+    "cmath",
+    "typing",
+    "ast",
+    "inspect",
+    "argparse",
+    "shutil",
+    "zipfile",
+    "urllib",
+    "string",
+    "re",
+    "textwrap",
+    "codecs",
+    "datetime",
+    "calendar",
+    "collections",
+    "heapq",
+    "bisect",
+    "array",
+    "copy",
+    "graphlib",
+    "enum",
+    "random",
+    "statistics",
+    "fractions",
+    "decimal",
+    "functools",
+    "itertools",
+    "operator",
+    "tempfile",
+    "glob",
+    "pickle",
+    "marshal",
+    "sqlite3",
+    "dbm",
+    "zlib",
+    "gzip",
+    "bz2",
+    "base64",
+    "lzma",
+    "tarfile",
+    "logging",
+    "io",
+    "time",
+    "getopt",
+]
 
 
 def getTopModules(path: Path):
@@ -90,6 +139,7 @@ class StdProcessor(Processor):
                         totalLog = ""
 
                         for module in modules:
+                            env.logger.info(f"Process stdlib: {module}")
                             result = self.worker.preprocess(
                                 [
                                     "-s",
@@ -116,7 +166,8 @@ class StdProcessor(Processor):
                                 totalResult = result.data
                             else:
                                 for entry in result.data.entries.values():
-                                    totalResult.addEntry(entry)
+                                    if entry.id not in totalResult.entries:
+                                        totalResult.addEntry(entry)
                         if totalResult is None:
                             finalResult = AexPyResult(
                                 code=1, log="Failed to dump", out=""
