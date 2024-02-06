@@ -80,8 +80,7 @@ class StdProcessor(Processor):
                             ]
                         )
                         result.save(dis)
-                        result.save(self.dist.preprocess(release))
-                        result.ensure()
+                        result.ensure().save(self.dist.preprocess(release))
 
                         removeMain(rootPath)
 
@@ -130,8 +129,7 @@ class StdProcessor(Processor):
                             )
 
                         finalResult.save(api)
-                        finalResult.save(self.dist.extract(release))
-                        finalResult.ensure()
+                        finalResult.ensure().save(self.dist.extract(release))
 
     @override
     def pair(self, pair):
@@ -149,14 +147,12 @@ class StdProcessor(Processor):
             if _ is None:
                 result = self.worker.diff([str(oldA), str(newA), "-"])
                 result.save(cha)
-                result.save(self.dist.diff(pair))
-                result.ensure()
+                result.ensure().save(self.dist.diff(pair))
         with self.doOnce(JOB_REPORT, str(pair)) as _:
             if _ is None:
                 result = self.worker.report([str(cha), "-"])
                 result.save(rep)
-                result.save(self.dist.report(pair))
-                result.ensure()
+                result.ensure().save(self.dist.report(pair))
 
     @override
     def getReleases(self, project):

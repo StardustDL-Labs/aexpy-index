@@ -10,7 +10,7 @@ defaults:
     shell: pwsh
 
 jobs:
-  update:
+  build:
     runs-on: ubuntu-latest
     env:
       PYTHONUTF8: 1
@@ -27,10 +27,11 @@ jobs:
       run: |
         python -m pip install -r ./requirements.txt
         sed -i 's/\"package\"/\"image\"/' ./config.json
-    - name: Checkout pages
-      run: |
-        git fetch origin gh-pages
-        git worktree add ./dist gh-pages
+    - uses: actions/cache/restore@v3
+      id: cache-restore
+      with:
+        path: ./dist
+        key: dist
     - name: Force update
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[update]') }}
       run: |
@@ -38,14 +39,42 @@ jobs:
     - name: Run
       run: |
         python -m index
+    - name: Upload pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./dist
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: dist
         path: ./dist
-    - name: Deploy GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        token: ${{ secrets.PA_TOKEN }}
-        branch: gh-pages
-        folder: ./dist
+        name: cache
+        path: |
+          ./cache
+          !./cache/*/wheels
+    - uses: actions/cache/save@v3
+      id: cache-save
+      with:
+        path: ./dist
+        key: dist
+    #   uses: JamesIves/github-pages-deploy-action@v4
+    #   with:
+    #     token: ${{ secrets.PA_TOKEN }}
+    #     branch: gh-pages
+    #     folder: ./dist
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

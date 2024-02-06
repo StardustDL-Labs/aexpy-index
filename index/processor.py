@@ -110,15 +110,13 @@ class Processor:
                     ]
                 )
                 result.save(dis)
-                result.save(self.dist.preprocess(release))
-                result.ensure()
+                result.ensure().save(self.dist.preprocess(release))
         with self.doOnce(JOB_EXTRACT, str(release)) as _:
             if _ is None:
                 env.logger.info(f"Extract release {release}")
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
                 result.save(api)
-                result.save(self.dist.extract(release))
-                result.ensure()
+                result.ensure().save(self.dist.extract(release))
 
     def pair(self, pair: ReleasePair):
         env.logger.info(f"Process release pair {pair}")
@@ -137,15 +135,13 @@ class Processor:
                     ]
                 )
                 result.save(cha)
-                result.save(self.dist.diff(pair))
-                result.ensure()
+                result.ensure().save(self.dist.diff(pair))
         with self.doOnce(JOB_REPORT, str(pair)) as _:
             if _ is None:
                 env.logger.info(f"Report releas pair {pair}")
                 result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
                 result.save(rep)
-                result.save(self.dist.report(pair))
-                result.ensure()
+                result.ensure().save(self.dist.report(pair))
 
     def getReleases(self, project: str):
         from .release import single
