@@ -1,4 +1,4 @@
 requests==2.31.0
 semver==3.0.2
-aexpy==0.2.2
+aexpy==0.2.3
 packaging==23.2
