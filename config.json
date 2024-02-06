@@ -2,7 +2,8 @@
     "dist": "./dist",
     "cache": "./cache",
     "packages": [
-        "generator-oj-problem"
+        "generator-oj-problem",
+        "coxbuild"
     ],
     "worker": "package"
 }
