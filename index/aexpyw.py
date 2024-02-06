@@ -85,7 +85,7 @@ class AexPyDockerWorker(AexPyWorker):
             "-v",
             f"{str(env.cache.resolve())}:/data",
             "--rm",
-            f"stardustdl/aexpy:{aexpy.__version__}",
+            f"stardustdl/aexpy:v{aexpy.__version__}",
         ]
 
     @override
