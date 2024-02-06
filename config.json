@@ -11,7 +11,19 @@
         "requests",
         "tornado",
         "PyYAML",
-        "jinja2"
+        "jinja2",
+        "pydantic",
+        "numpy",
+        "pillow",
+        "pandas",
+        "pytest",
+        "matplotlib",
+        "urllib3",
+        "rich",
+        "jmespath",
+        "attrs",
+        "scrapy",
+        "pyside6"
     ],
     "worker": "package"
 }
