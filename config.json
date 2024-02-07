@@ -6,6 +6,10 @@
         "aexpy",
         "generator-oj-problem",
         "coxbuild",
+        "paperead",
+        "codesim",
+        "schemdule",
+        "imagings",
         "click",
         "Flask",
         "requests",
@@ -23,7 +27,8 @@
         "jmespath",
         "attrs",
         "scrapy",
-        "pyside6"
+        "pyside6",
+        "pyspark"
     ],
     "worker": "package"
 }
