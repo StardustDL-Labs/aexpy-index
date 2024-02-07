@@ -30,5 +30,5 @@ if __name__ == "__main__":
     env.logger.info(f"Current AexPy version: {worker.version()}")
 
     processor = Processor(worker, db, DistPathBuilder(env.dist))
-    processor.packages(*conf.packages, timeout=timedelta(hours=5.0))
+    processor.packages(*conf.packages, timeout=timedelta(hours=2.0))
     db.save()
