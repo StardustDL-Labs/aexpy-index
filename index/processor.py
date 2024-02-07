@@ -214,18 +214,22 @@ class Processor:
             )
         )
 
-    def packages(self, *projects: str):
+    def packages(self, *projects: str, timeout: datetime.timedelta | None = None):
         doneProjects: list[str] = []
-        for project in projects:
-            try:
-                if project != "python":
-                    self.package(project)
-                else:
-                    from .std import StdProcessor
+        with utils.elapsedTimer() as timer:
+            for project in projects:
+                if timeout and timer() > timeout:
+                    env.logger.warning("Exceed timeout.")
+                    break
+                try:
+                    if project != "python":
+                        self.package(project)
+                    else:
+                        from .std import StdProcessor
 
-                    std = StdProcessor(self.db, self.dist)
-                    std.package(project)
-                doneProjects.append(project)
-            except Exception as ex:
-                env.logger.error(f"Failed to process package: {project}", exc_info=ex)
+                        std = StdProcessor(self.db, self.dist)
+                        std.package(project)
+                    doneProjects.append(project)
+                except Exception as ex:
+                    env.logger.error(f"Failed to process package: {project}", exc_info=ex)
         (env.dist / "packages.json").write_text(json.dumps(doneProjects))

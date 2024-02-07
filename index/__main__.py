@@ -1,3 +1,4 @@
+from datetime import timedelta
 import sys
 from pathlib import Path
 import logging
@@ -29,5 +30,5 @@ if __name__ == "__main__":
     env.logger.info(f"Current AexPy version: {worker.version()}")
 
     processor = Processor(worker, db, DistPathBuilder(env.dist))
-    processor.packages(*conf.packages)
+    processor.packages(*conf.packages, timeout=timedelta(hours=5.0))
     db.save()
