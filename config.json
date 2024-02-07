@@ -17,7 +17,6 @@
         "PyYAML",
         "jinja2",
         "pydantic",
-        "numpy",
         "pillow",
         "pandas",
         "pytest",
