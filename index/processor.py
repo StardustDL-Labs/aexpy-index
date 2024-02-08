@@ -3,6 +3,7 @@ import datetime
 from functools import cached_property
 import json
 from pathlib import Path
+import shutil
 
 from .dist import DistPathBuilder
 from .aexpyw import AexPyWorker
@@ -117,6 +118,7 @@ class Processor:
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
                 result.save(api)
                 result.ensure().save(self.dist.extract(release))
+        shutil.rmtree(wheelDir, ignore_errors=True)
 
     def pair(self, pair: ReleasePair):
         env.logger.info(f"Process release pair {pair}")
