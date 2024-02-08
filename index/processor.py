@@ -252,7 +252,13 @@ class Processor:
         doneProjects: list[str] = []
         for project in self.dist.projects():
             try:
-                self.index(project)
+                if project != "python":
+                    self.index(project)
+                else:
+                    from .std import StdProcessor
+
+                    std = StdProcessor(self.db, self.dist)
+                    std.index(project)
                 doneProjects.append(project)
             except Exception as ex:
                 env.logger.error(f"Failed to index package: {project}", exc_info=ex)
