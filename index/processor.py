@@ -28,19 +28,32 @@ class ProcessResult(BaseModel):
 class ProcessDB(BaseModel):
     path: Path
     data: dict[str, ProcessResult] = {}
+    processLimit: int | None = None
+    processCount: int = 0
 
     def __getitem__(self, job: str):
         return self.data.get(job)
 
     @contextmanager
     def do(self, job: str, version: str):
+        processChange = 0
         try:
-            yield self[job]
+            res = self[job]
+            if res is None:
+                processChange = 1
+                yield res
             self.done(job, version, ProcessState.SUCCESS)
         except Exception as ex:
             env.logger.error(f"failed to do job: {job}", exc_info=ex)
             self.done(job, version, ProcessState.FAILURE)
             raise
+        finally:
+            self.processCount += processChange
+            if self.processLimit is not None:
+                if self.processCount >= self.processLimit:
+                    env.logger.info(f"Meet process limit {self.processLimit}")
+                    self.save()
+                    exit(0)
 
     def done(self, job: str, version: str, state: ProcessState):
         self.data[job] = ProcessResult(
@@ -234,4 +247,13 @@ class Processor:
                     doneProjects.append(project)
                 except Exception as ex:
                     env.logger.error(f"Failed to process package: {project}", exc_info=ex)
+    
+    def indexPackages(self):
+        doneProjects: list[str] = []
+        for project in self.dist.projects():
+            try:
+                self.index(project)
+                doneProjects.append(project)
+            except Exception as ex:
+                env.logger.error(f"Failed to index package: {project}", exc_info=ex)
         (env.dist / "packages.json").write_text(json.dumps(doneProjects))

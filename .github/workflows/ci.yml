@@ -3,7 +3,7 @@ name: CI
 on:
   push:
   schedule:
-    - cron: "0 0,12 * * *"
+    - cron: "0 0 * * *"
 
 defaults:
   run:
@@ -44,9 +44,12 @@ jobs:
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[update]') }}
       run: |
         rm ./dist/process.json
-    - name: Run
+    - name: Run processing
       run: |
-        python -m index
+        python -m index.mProcess
+    - name: Run indexing
+      run: |
+        python -m index.mIndex
     - name: Upload pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
