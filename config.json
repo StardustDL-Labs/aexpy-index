@@ -24,7 +24,6 @@
         "jmespath",
         "attrs",
         "scrapy",
-        "pyside6",
         "pyspark"
     ],
     "worker": "package"
