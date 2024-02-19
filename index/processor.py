@@ -100,7 +100,9 @@ class Processor:
 
     def doOnce(self, type: str, id: str):
         if self.hasDone(type, id):
-            return None
+            res = self.db[f"{type}:{id}"]
+            assert res is not None
+            return res
         @contextmanager
         def wrapper():
             with self.db.do(f"{type}:{id}", self.workerVersion):
@@ -114,7 +116,9 @@ class Processor:
         wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
         utils.ensureDirectory(wheelDir)
         wrapper = self.doOnce(JOB_PREPROCESS, str(release))
-        if wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
+        else:
             with wrapper():
                 env.logger.info(f"Preprocess release {release}")
                 result = self.worker.preprocess(
@@ -129,7 +133,9 @@ class Processor:
                 result.save(dis)
                 result.ensure().save(self.dist.preprocess(release))
         wrapper = self.doOnce(JOB_EXTRACT, str(release))
-        if wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
+        else:
             with wrapper():
                 env.logger.info(f"Extract release {release}")
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
@@ -145,7 +151,9 @@ class Processor:
         rep = self.cacheDist.report(pair)
         
         wrapper = self.doOnce(JOB_DIFF, str(pair))
-        if wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
+        else:
             with wrapper():
                 env.logger.info(f"Diff releas pair {pair}")
                 result = self.worker.diff(
@@ -158,7 +166,9 @@ class Processor:
                 result.save(cha)
                 result.ensure().save(self.dist.diff(pair))
         wrapper = self.doOnce(JOB_REPORT, str(pair))
-        if wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
+        else:
             with wrapper():
                 env.logger.info(f"Report releas pair {pair}")
                 result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])

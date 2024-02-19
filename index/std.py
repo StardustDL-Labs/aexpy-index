@@ -15,6 +15,8 @@ from .processor import (
     JOB_EXTRACT,
     JOB_PREPROCESS,
     JOB_REPORT,
+    ProcessResult,
+    ProcessState,
     Processor,
 )
 from .aexpyw import AexPyResult, AexPyWorker
@@ -51,7 +53,8 @@ class StdProcessor(Processor):
     @override
     def version(self, release):
         wrapper = self.doOnce(JOB_EXTRACT, str(release))
-        if not wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
             return
 
         dis = self.cacheDist.preprocess(release)
@@ -141,13 +144,17 @@ class StdProcessor(Processor):
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
         wrapper = self.doOnce(JOB_DIFF, str(pair))
-        if wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
+        else:
             with wrapper():
                 result = self.worker.diff([str(oldA), str(newA), "-"])
                 result.save(cha)
                 result.ensure().save(self.dist.diff(pair))
         wrapper = self.doOnce(JOB_REPORT, str(pair))
-        if wrapper:
+        if isinstance(wrapper, ProcessResult):
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
+        else:
             with wrapper():
                 result = self.worker.report([str(cha), "-"])
                 result.save(rep)
