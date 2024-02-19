@@ -24,16 +24,11 @@ jobs:
       uses: jlumbroso/free-disk-space@main
     - uses: mamba-org/setup-micromamba@v1
       with:
-        environment-name: main
-        create-args: >-
-          python=3.12
-        init-shell: >-
-          bash
+        environment-file: env.yaml
         cache-environment: true
         post-cleanup: 'all'
     - name: Prepare env
       run: |
-        python -m pip install -r ./requirements.txt
         sed -i 's/\"package\"/\"image\"/' ./config.json
     - name: Restore cache
       uses: actions/cache/restore@v3
@@ -46,9 +41,11 @@ jobs:
       run: |
         rm ./dist/process.json
     - name: Run processing
+      shell: micromamba-shell {0}
       run: |
         python -m index.mProcess
     - name: Run indexing
+      shell: micromamba-shell {0}
       run: |
         python -m index.mIndex
     - name: Upload pages artifact
