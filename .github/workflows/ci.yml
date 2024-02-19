@@ -79,6 +79,9 @@ jobs:
         path: |
           ./cache
           !./cache/*/wheels
+    - name: Remove logs
+      run: |
+        rm ./dist/**/*.log
     - name: Upload pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
