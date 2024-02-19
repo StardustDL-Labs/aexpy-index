@@ -22,6 +22,8 @@ jobs:
         persist-credentials: false
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
+      # with:
+      #   tool-cache: false
     - uses: mamba-org/setup-micromamba@v1
       with:
         environment-file: env.yaml
