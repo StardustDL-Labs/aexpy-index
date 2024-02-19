@@ -64,10 +64,9 @@ jobs:
       with:
         path: ./dist
         key: ${{ env.CACHEKEY }}
-    - name: Upload pages artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: ./dist
+    - name: Show storage usage
+      run: |
+        sudo df -h
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
@@ -80,6 +79,10 @@ jobs:
         path: |
           ./cache
           !./cache/*/wheels
+    - name: Upload pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./dist
     #   uses: JamesIves/github-pages-deploy-action@v4
     #   with:
     #     token: ${{ secrets.PA_TOKEN }}
