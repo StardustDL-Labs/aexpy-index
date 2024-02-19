@@ -22,8 +22,8 @@ jobs:
         persist-credentials: false
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
-      # with:
-      #   tool-cache: false
+      with:
+        tool-cache: false
     - uses: mamba-org/setup-micromamba@v1
       with:
         environment-file: env.yaml
@@ -50,6 +50,20 @@ jobs:
       shell: micromamba-shell {0}
       run: |
         python -m index.mIndex
+    - name: Delete previous cache
+      if: ${{ steps.cache-restore.outputs.cache-hit }}
+      continue-on-error: true
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete "${{ env.CACHEKEY }}" --confirm
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Save cache
+      uses: actions/cache/save@v3
+      id: cache-save
+      with:
+        path: ./dist
+        key: ${{ env.CACHEKEY }}
     - name: Upload pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
@@ -66,20 +80,6 @@ jobs:
         path: |
           ./cache
           !./cache/*/wheels
-    - name: Delete previous cache
-      if: ${{ steps.cache-restore.outputs.cache-hit }}
-      continue-on-error: true
-      run: |
-        gh extension install actions/gh-actions-cache
-        gh actions-cache delete "${{ env.CACHEKEY }}" --confirm
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Save cache
-      uses: actions/cache/save@v3
-      id: cache-save
-      with:
-        path: ./dist
-        key: ${{ env.CACHEKEY }}
     #   uses: JamesIves/github-pages-deploy-action@v4
     #   with:
     #     token: ${{ secrets.PA_TOKEN }}
