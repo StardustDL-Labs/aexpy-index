@@ -98,12 +98,14 @@ class Processor:
     def hasDone(self, type: str, id: str):
         return f"{type}:{id}" in self.db.data
 
-    @contextmanager
     def doOnce(self, type: str, id: str):
-        with self.db.do(f"{type}:{id}", self.workerVersion) as res:
-            if res:
-                assert res.state == ProcessState.SUCCESS, "Not success"
-            yield res
+        if self.hasDone(type, id):
+            return None
+        @contextmanager
+        def wrapper():
+            with self.db.do(f"{type}:{id}", self.workerVersion):
+                yield
+        return wrapper
 
     def version(self, release: Release):
         env.logger.info(f"Process release {release}")
@@ -111,8 +113,9 @@ class Processor:
         api = self.cacheDist.extract(release)
         wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
         utils.ensureDirectory(wheelDir)
-        with self.doOnce(JOB_PREPROCESS, str(release)) as _:
-            if _ is None:
+        wrapper = self.doOnce(JOB_PREPROCESS, str(release))
+        if wrapper:
+            with wrapper():
                 env.logger.info(f"Preprocess release {release}")
                 result = self.worker.preprocess(
                     [
@@ -125,8 +128,9 @@ class Processor:
                 )
                 result.save(dis)
                 result.ensure().save(self.dist.preprocess(release))
-        with self.doOnce(JOB_EXTRACT, str(release)) as _:
-            if _ is None:
+        wrapper = self.doOnce(JOB_EXTRACT, str(release))
+        if wrapper:
+            with wrapper():
                 env.logger.info(f"Extract release {release}")
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
                 result.save(api)
@@ -139,8 +143,10 @@ class Processor:
         new = self.cacheDist.extract(pair.new)
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
-        with self.doOnce(JOB_DIFF, str(pair)) as _:
-            if _ is None:
+        
+        wrapper = self.doOnce(JOB_DIFF, str(pair))
+        if wrapper:
+            with wrapper():
                 env.logger.info(f"Diff releas pair {pair}")
                 result = self.worker.diff(
                     [
@@ -151,8 +157,9 @@ class Processor:
                 )
                 result.save(cha)
                 result.ensure().save(self.dist.diff(pair))
-        with self.doOnce(JOB_REPORT, str(pair)) as _:
-            if _ is None:
+        wrapper = self.doOnce(JOB_REPORT, str(pair))
+        if wrapper:
+            with wrapper():
                 env.logger.info(f"Report releas pair {pair}")
                 result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
                 result.save(rep)

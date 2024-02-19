@@ -50,8 +50,8 @@ class StdProcessor(Processor):
 
     @override
     def version(self, release):
-        need = not self.hasDone(JOB_EXTRACT, str(release))
-        if not need:
+        wrapper = self.doOnce(JOB_EXTRACT, str(release))
+        if not wrapper:
             return
 
         dis = self.cacheDist.preprocess(release)
@@ -59,77 +59,74 @@ class StdProcessor(Processor):
 
         with self.envBuilder.use(release.version, logger=env.logger) as e:
             with e as r:
-                with self.doOnce(JOB_EXTRACT, str(release)) as _:
-                    if _ is None:
-                        pathRes = r.runPythonText(
-                            '-c "import pathlib; print(pathlib.__file__)"', check=True
-                        )
-                        rootPath = Path(pathRes.stdout.strip()).parent
-                        modules = list(getTopModules(rootPath))
+                with wrapper():
+                    pathRes = r.runPythonText(
+                        '-c "import pathlib; print(pathlib.__file__)"', check=True
+                    )
+                    rootPath = Path(pathRes.stdout.strip()).parent
+                    modules = list(getTopModules(rootPath))
 
-                        result = self.worker.preprocess(
-                            [
-                                "-s",
-                                str(rootPath),
-                                "-p",
-                                str(release),
-                                "-P",
-                                release.version,
-                                *sum([["-m", m] for m in modules], start=[]),
-                                "-",
-                            ]
-                        )
-                        result.save(dis)
-                        result.ensure().save(self.dist.preprocess(release))
+                    result = self.worker.preprocess(
+                        [
+                            "-s",
+                            str(rootPath),
+                            "-p",
+                            str(release),
+                            "-P",
+                            release.version,
+                            *sum([["-m", m] for m in modules], start=[]),
+                            "-",
+                        ]
+                    )
+                    result.save(dis)
+                    result.ensure().save(self.dist.preprocess(release))
 
-                        removeMain(rootPath)
+                    removeMain(rootPath)
 
-                        totalResult: ApiDescription | None = None
-                        totalLog = ""
+                    totalResult: ApiDescription | None = None
+                    totalLog = ""
 
-                        with utils.elapsedTimer() as timer:
-                            for module in modules:
-                                env.logger.info(f"Process stdlib: {module}")
-                                result = self.worker.preprocess(
-                                    [
-                                        "-s",
-                                        str(rootPath),
-                                        "-p",
-                                        str(release),
-                                        "-P",
-                                        release.version,
-                                        "-m",
-                                        module,
-                                        "-",
-                                    ],
-                                    check=True,
-                                )
-                                result = self.worker.extract(
-                                    ["-", "-", "-e", e.name], input=result.out
-                                )
-                                totalLog += result.log
-
-                                if result.data is None:
-                                    continue
-
-                                if totalResult is None:
-                                    totalResult = result.data
-                                else:
-                                    for entry in result.data.entries.values():
-                                        if entry.id not in totalResult.entries:
-                                            totalResult.addEntry(entry)
-                        if totalResult is None:
-                            finalResult = AexPyResult(
-                                code=1, log="Failed to dump", out=""
+                    with utils.elapsedTimer() as timer:
+                        for module in modules:
+                            env.logger.info(f"Process stdlib: {module}")
+                            result = self.worker.preprocess(
+                                [
+                                    "-s",
+                                    str(rootPath),
+                                    "-p",
+                                    str(release),
+                                    "-P",
+                                    release.version,
+                                    "-m",
+                                    module,
+                                    "-",
+                                ],
+                                check=True,
                             )
-                        else:
-                            totalResult.duration = timer()
-                            finalResult = AexPyResult(
-                                out=totalResult.model_dump_json(), log=totalLog, code=0
+                            result = self.worker.extract(
+                                ["-", "-", "-e", e.name], input=result.out
                             )
+                            totalLog += result.log
 
-                        finalResult.save(api)
-                        finalResult.ensure().save(self.dist.extract(release))
+                            if result.data is None:
+                                continue
+
+                            if totalResult is None:
+                                totalResult = result.data
+                            else:
+                                for entry in result.data.entries.values():
+                                    if entry.id not in totalResult.entries:
+                                        totalResult.addEntry(entry)
+                    if totalResult is None:
+                        finalResult = AexPyResult(code=1, log="Failed to dump", out="")
+                    else:
+                        totalResult.duration = timer()
+                        finalResult = AexPyResult(
+                            out=totalResult.model_dump_json(), log=totalLog, code=0
+                        )
+
+                    finalResult.save(api)
+                    finalResult.ensure().save(self.dist.extract(release))
 
     @override
     def pair(self, pair):
@@ -143,13 +140,15 @@ class StdProcessor(Processor):
         newA = self.cacheDist.extract(pair.new)
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
-        with self.doOnce(JOB_DIFF, str(pair)) as _:
-            if _ is None:
+        wrapper = self.doOnce(JOB_DIFF, str(pair))
+        if wrapper:
+            with wrapper():
                 result = self.worker.diff([str(oldA), str(newA), "-"])
                 result.save(cha)
                 result.ensure().save(self.dist.diff(pair))
-        with self.doOnce(JOB_REPORT, str(pair)) as _:
-            if _ is None:
+        wrapper = self.doOnce(JOB_REPORT, str(pair))
+        if wrapper:
+            with wrapper():
                 result = self.worker.report([str(cha), "-"])
                 result.save(rep)
                 result.ensure().save(self.dist.report(pair))
