@@ -161,7 +161,7 @@ class Processor:
     def getReleases(self, project: str):
         from .release import single
 
-        return single(project)[-30:]
+        return single(project)[-40:]
 
     def package(self, project: str):
         from .release import pair

@@ -26,7 +26,6 @@
         "scrapy",
         "pyspark",
         "pyside6",
-        "numpy",
         "pillow",
         "matplotlib"
     ],
