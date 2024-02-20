@@ -123,6 +123,7 @@ class StdProcessor(Processor):
                     if totalResult is None:
                         finalResult = AexPyResult(code=1, log="Failed to dump", out="")
                     else:
+                        totalResult.distribution.topModules = modules
                         totalResult.duration = timer()
                         finalResult = AexPyResult(
                             out=totalResult.model_dump_json(), log=totalLog, code=0
