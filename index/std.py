@@ -117,8 +117,8 @@ class StdProcessor(Processor):
                             if totalResult is None:
                                 totalResult = result.data
                             else:
-                                for entry in result.data.entries.values():
-                                    if entry.id not in totalResult.entries:
+                                for entry in result.data:
+                                    if entry.id not in totalResult:
                                         totalResult.addEntry(entry)
                     if totalResult is None:
                         finalResult = AexPyResult(code=1, log="Failed to dump", out="")
