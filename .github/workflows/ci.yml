@@ -41,7 +41,7 @@ jobs:
     - name: Force update
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[update]') }}
       run: |
-        rm ./dist/process.json
+        rm -f ./dist/process.json
     - name: Run processing
       shell: micromamba-shell {0}
       run: |
