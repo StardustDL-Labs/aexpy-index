@@ -36,19 +36,15 @@ class ProcessDB(BaseModel):
 
     @contextmanager
     def do(self, job: str, version: str):
-        processChange = 0
         try:
-            res = self[job]
-            if res is None:
-                processChange = 1
-                yield res
+            yield
             self.done(job, version, ProcessState.SUCCESS)
         except Exception as ex:
             env.logger.error(f"failed to do job: {job}", exc_info=ex)
             self.done(job, version, ProcessState.FAILURE)
             raise
         finally:
-            self.processCount += processChange
+            self.processCount += 1
             if self.processLimit is not None:
                 if self.processCount >= self.processLimit:
                     env.logger.info(f"Meet process limit {self.processLimit}")
@@ -96,17 +92,20 @@ class Processor:
         return self.worker.version()
 
     def hasDone(self, type: str, id: str):
-        return f"{type}:{id}" in self.db.data
+        item = self.db[f"{type}:{id}"]
+        return item and item.version == self.workerVersion
 
     def doOnce(self, type: str, id: str):
         if self.hasDone(type, id):
             res = self.db[f"{type}:{id}"]
             assert res is not None
             return res
+
         @contextmanager
         def wrapper():
             with self.db.do(f"{type}:{id}", self.workerVersion):
                 yield
+
         return wrapper
 
     def version(self, release: Release):
@@ -149,7 +148,7 @@ class Processor:
         new = self.cacheDist.extract(pair.new)
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
-        
+
         wrapper = self.doOnce(JOB_DIFF, str(pair))
         if isinstance(wrapper, ProcessResult):
             assert wrapper.state == ProcessState.SUCCESS, "not success"
@@ -263,8 +262,10 @@ class Processor:
                         std.package(project)
                     doneProjects.append(project)
                 except Exception as ex:
-                    env.logger.error(f"Failed to process package: {project}", exc_info=ex)
-    
+                    env.logger.error(
+                        f"Failed to process package: {project}", exc_info=ex
+                    )
+
     def indexPackages(self):
         doneProjects: list[str] = []
         for project in self.dist.projects():
