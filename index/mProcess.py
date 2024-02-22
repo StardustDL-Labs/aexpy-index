@@ -22,7 +22,7 @@ if __name__ == "__main__":
         conf.db = env.dist / "process.json"
 
     db = ProcessDB.load(conf.db)
-    db.processLimit = 1000
+    db.processLimit = 500
     db.processCount = 0
     if conf.worker == "image":
         worker = AexPyDockerWorker()
