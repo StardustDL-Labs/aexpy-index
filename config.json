@@ -17,17 +17,21 @@
         "PyYAML",
         "jinja2",
         "pydantic",
-        "pandas",
         "pytest",
         "urllib3",
         "rich",
         "jmespath",
         "attrs",
         "scrapy",
-        "pyspark",
+        "pillow"
+    ],
+    "extraPackages": [
+        "pandas",
+        "matplotlib",
         "pyside6",
-        "pillow",
-        "matplotlib"
+        "pyspark",
+        "scrapy",
+        "numpy"
     ],
     "worker": "package"
 }
