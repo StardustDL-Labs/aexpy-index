@@ -117,7 +117,7 @@ class StdProcessor(Processor):
                             except Exception as ex:
                                 env.logger.error(
                                     f"Failed to process std module {module} of {release}",
-                                    exc_info=ex,
+                                    exc_info=True,
                                 )
                                 continue
                             totalLog += result.log
@@ -150,7 +150,7 @@ class StdProcessor(Processor):
             env.logger.info(f"Processed pair {str(pair)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
             return
-        
+
         env.logger.info(f"Process pair {str(pair)}")
 
         oldA = self.cacheDist.extract(pair.old)

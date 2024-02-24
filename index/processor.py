@@ -40,7 +40,7 @@ class ProcessDB(BaseModel):
             yield
             self.done(job, version, ProcessState.SUCCESS)
         except Exception as ex:
-            env.logger.error(f"failed to do job: {job}", exc_info=ex)
+            env.logger.error(f"failed to do job: {job}", exc_info=True)
             self.done(job, version, ProcessState.FAILURE)
             raise
         finally:
@@ -66,7 +66,7 @@ class ProcessDB(BaseModel):
             res.path = file
         except Exception as ex:
             env.logger.error(
-                f"failed to load process db: {file}, use empty db", exc_info=ex
+                f"failed to load process db: {file}, use empty db", exc_info=True
             )
             res = cls(path=file)
         res.processCount = 0
@@ -191,40 +191,45 @@ class Processor:
 
         env.logger.info(f"Process package {project}")
 
-        releases = self.getReleases(project)
-        env.logger.info(
-            f"Found {len(releases)} releases: {', '.join(str(r) for r in releases)}"
-        )
+        with indentLogging():
+            releases = self.getReleases(project)
+            env.logger.info(
+                f"Found {len(releases)} releases: {', '.join(str(r) for r in releases).replace(f'{project}@', '')}"
+            )
 
         doneReleases: list[Release] = []
-        for release in releases:
+        for i, release in enumerate(releases):
+            env.logger.info(f"({i+1} / {len(releases)}) Version {str(release)}")
             with indentLogging():
                 try:
                     self.version(release)
                     doneReleases.append(release)
                 except Exception as ex:
                     env.logger.error(
-                        f"Failed to process release {str(release)}", exc_info=ex
+                        f"Failed to process release {str(release)}", exc_info=True
                     )
 
         env.logger.info(
-            f"Done {len(doneReleases)} / {len(releases)} releases: {', '.join(str(r) for r in doneReleases)}"
+            f"Done {len(doneReleases)} / {len(releases)} releases: {', '.join(str(r) for r in doneReleases).replace(f'{project}@', '')}"
         )
 
         pairs = pair(doneReleases)
         env.logger.info(f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs)}")
 
         donePairs: list[ReleasePair] = []
-        for pair in pairs:
+        for i, pair in enumerate(pairs):
+            env.logger.info(f"({i+1} / {len(pairs)}) Pair {str(pair)}")
             with indentLogging():
                 try:
                     self.pair(pair)
                     donePairs.append(pair)
                 except Exception as ex:
-                    env.logger.error(f"Failed to process pair {str(pair)}", exc_info=ex)
+                    env.logger.error(
+                        f"Failed to process pair {str(pair)}", exc_info=True
+                    )
 
         env.logger.info(
-            f"Done {len(donePairs)} / {len([pairs])} pairs: {', '.join(str(r) for r in donePairs)}"
+            f"Done {len(donePairs)} / {len([pairs])} pairs: {', '.join(str(r) for r in donePairs).replace(f'{project}@', '')}"
         )
 
         self.index(project)
@@ -236,30 +241,34 @@ class Processor:
 
         releases = sortedReleases(self.getReleases(project))
         env.logger.info(
-            f"Found {len(releases)} releases: {', '.join(str(r) for r in releases)}"
+            f"Found {len(releases)} releases: {', '.join(str(r) for r in releases).replace(f'{project}@', '')}"
         )
 
         distributions = sortedReleases(self.dist.distributions(project))
         env.logger.info(
-            f"Found {len(distributions)} distributions: {', '.join(str(r) for r in distributions)}"
+            f"Found {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
         )
 
         apis = sortedReleases(self.dist.apis(project))
-        env.logger.info(f"Found {len(apis)} apis: {', '.join(str(r) for r in apis)}")
+        env.logger.info(
+            f"Found {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
+        )
 
         pairs = list(pair(apis))
-        env.logger.info(f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs)}")
+        env.logger.info(
+            f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs).replace(f'{project}@', '')}"
+        )
 
         doneChanges = {str(x) for x in self.dist.changes(project)}
         changes = [x for x in pairs if str(x) in doneChanges]
         env.logger.info(
-            f"Found {len(changes)} changes: {', '.join(str(r) for r in changes)}"
+            f"Found {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
         )
 
         doneReports = {str(x) for x in self.dist.reports(project)}
         reports = [x for x in pairs if str(x) in doneReports]
         env.logger.info(
-            f"Found {len(reports)} reports: {', '.join(str(r) for r in reports)}"
+            f"Found {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
         )
 
         projectDir = self.dist.projectDir(project)
@@ -296,7 +305,7 @@ class Processor:
                     doneProjects.append(project)
                 except Exception as ex:
                     env.logger.error(
-                        f"Failed to process package: {project}", exc_info=ex
+                        f"Failed to process package: {project}", exc_info=True
                     )
 
     def indexPackages(self):
@@ -312,5 +321,5 @@ class Processor:
                     std.index(project)
                 doneProjects.append(project)
             except Exception as ex:
-                env.logger.error(f"Failed to index package: {project}", exc_info=ex)
+                env.logger.error(f"Failed to index package: {project}", exc_info=True)
         (env.dist / "packages.json").write_text(json.dumps(doneProjects))

@@ -6,7 +6,6 @@ from typing import override
 from aexpy.models import Product, Distribution, ApiDescription, ApiDifference, Report
 import aexpy
 from . import env
-import sys
 
 
 @dataclass
@@ -24,6 +23,7 @@ class AexPyResult[T: Product]:
     def save(self, path: Path):
         path.write_text(self.out)
         (path.with_suffix(".log")).write_text(self.log)
+
 
 class AexPyWorker:
     def getCommandPrefix(self):
@@ -48,7 +48,7 @@ class AexPyWorker:
         try:
             result.data = type.model_validate_json(result.out)
         except Exception as ex:
-            env.logger.error("Failed to parse aexpy output", exc_info=ex)
+            env.logger.error("Failed to parse aexpy output", exc_info=True)
             result.data = None
         return result
 

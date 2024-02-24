@@ -71,7 +71,7 @@ def sortedReleases(releases: Iterable[Release]):
     except Exception as ex:
         versions = origin.copy()
         env.logger.error(
-            f"Failed to sort versions by packaging.version: {versions}", exc_info=ex
+            f"Failed to sort versions by packaging.version: {versions}", exc_info=True
         )
         try:
             versions.sort(
@@ -82,7 +82,7 @@ def sortedReleases(releases: Iterable[Release]):
         except Exception as ex:
             versions = origin.copy()
             env.logger.error(
-                f"Failed to sort versions by semver: {versions}", exc_info=ex
+                f"Failed to sort versions by semver: {versions}", exc_info=True
             )
     return versions
 
