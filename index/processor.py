@@ -6,11 +6,11 @@ from pathlib import Path
 import shutil
 
 from .dist import DistPathBuilder
-from .aexpyw import AexPyWorker
+from .worker import AexPyWorker
 from aexpy.models import Release, ReleasePair
 from pydantic import BaseModel
 from enum import IntEnum
-from . import env
+from . import env, indentLogging
 from aexpy import utils
 
 
@@ -69,6 +69,7 @@ class ProcessDB(BaseModel):
                 f"failed to load process db: {file}, use empty db", exc_info=ex
             )
             res = cls(path=file)
+        res.processCount = 0
         return res
 
 
@@ -95,7 +96,7 @@ class Processor:
         item = self.db[f"{type}:{id}"]
         return item and item.version == self.workerVersion
 
-    def doOnce(self, type: str, id: str):
+    def doOnce(self, type: str, id: str):# -> ProcessResult | Callable[[], _GeneratorContextManager[None]]:
         if self.hasDone(type, id):
             res = self.db[f"{type}:{id}"]
             assert res is not None
@@ -109,17 +110,17 @@ class Processor:
         return wrapper
 
     def version(self, release: Release):
-        env.logger.info(f"Process release {release}")
         dis = self.cacheDist.preprocess(release)
         api = self.cacheDist.extract(release)
         wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
         utils.ensureDirectory(wheelDir)
         wrapper = self.doOnce(JOB_PREPROCESS, str(release))
         if isinstance(wrapper, ProcessResult):
+            env.logger.info(f"Preprocessed {release=}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            env.logger.info(f"Preprocess {release=}")
             with wrapper():
-                env.logger.info(f"Preprocess release {release}")
                 result = self.worker.preprocess(
                     [
                         "-r",
@@ -131,19 +132,20 @@ class Processor:
                 )
                 result.save(dis)
                 result.ensure().save(self.dist.preprocess(release))
+
         wrapper = self.doOnce(JOB_EXTRACT, str(release))
         if isinstance(wrapper, ProcessResult):
+            env.logger.info(f"Extracted {release=}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            env.logger.info(f"Extract {release=}")
             with wrapper():
-                env.logger.info(f"Extract release {release}")
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
                 result.save(api)
                 result.ensure().save(self.dist.extract(release))
         shutil.rmtree(wheelDir, ignore_errors=True)
 
     def pair(self, pair: ReleasePair):
-        env.logger.info(f"Process release pair {pair}")
         old = self.cacheDist.extract(pair.old)
         new = self.cacheDist.extract(pair.new)
         cha = self.cacheDist.diff(pair)
@@ -151,10 +153,11 @@ class Processor:
 
         wrapper = self.doOnce(JOB_DIFF, str(pair))
         if isinstance(wrapper, ProcessResult):
+            env.logger.info(f"Diffed {pair=}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            env.logger.info(f"Diff {pair=}")
             with wrapper():
-                env.logger.info(f"Diff releas pair {pair}")
                 result = self.worker.diff(
                     [
                         str(self.worker.resolvePath(old)),
@@ -164,12 +167,14 @@ class Processor:
                 )
                 result.save(cha)
                 result.ensure().save(self.dist.diff(pair))
+
         wrapper = self.doOnce(JOB_REPORT, str(pair))
         if isinstance(wrapper, ProcessResult):
+            env.logger.info(f"Reported {pair=}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            env.logger.info(f"Report {pair=}")
             with wrapper():
-                env.logger.info(f"Report releas pair {pair}")
                 result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
                 result.save(rep)
                 result.ensure().save(self.dist.report(pair))
@@ -185,32 +190,36 @@ class Processor:
         env.logger.info(f"Process package {project}")
 
         releases = self.getReleases(project)
-        env.logger.info(f"Find {len(releases)} releases: {releases}")
+        env.logger.info(f"Found {len(releases)} {releases=}")
 
         doneReleases: list[Release] = []
-        for rel in releases:
-            env.logger.debug(f"Processing {rel}")
-            try:
-                self.version(rel)
-                doneReleases.append(rel)
-            except Exception as ex:
-                env.logger.error(f"Failed to process {rel}", exc_info=ex)
+        for release in releases:
+            with indentLogging():
+                try:
+                    self.version(release)
+                    doneReleases.append(release)
+                except Exception as ex:
+                    env.logger.error(f"Failed to process {release=}", exc_info=ex)
 
         env.logger.info(
             f"Done {len(doneReleases)} / {len(releases)} releases: {doneReleases}"
         )
 
         pairs = pair(doneReleases)
-        env.logger.info(f"Find {len(pairs)} release pairs: {pairs}")
+        env.logger.info(f"Found {len(pairs)} release pairs: {pairs}")
 
         donePairs: list[ReleasePair] = []
-        for rp in pairs:
-            env.logger.debug(f"Processing {rp}")
-            try:
-                self.pair(rp)
-                donePairs.append(rp)
-            except Exception as ex:
-                env.logger.error(f"Failed to process {rp}", exc_info=ex)
+        for pair in pairs:
+            with indentLogging():
+                try:
+                    self.pair(pair)
+                    donePairs.append(pair)
+                except Exception as ex:
+                    env.logger.error(f"Failed to process {pair=}", exc_info=ex)
+        
+        env.logger.info(
+            f"Done {len(donePairs)} / {len([pairs])} pairs: {donePairs}"
+        )
 
         self.index(project)
 
@@ -220,19 +229,28 @@ class Processor:
         env.logger.info(f"Index package {project}")
 
         releases = sortedReleases(self.getReleases(project))
-        env.logger.info(f"Find {len(releases)} releases: {releases}")
+        env.logger.info(f"Found {len(releases)} {releases=}")
 
         distributions = sortedReleases(self.dist.distributions(project))
+        env.logger.info(f"Found {len(distributions)} {distributions=}")
+
         apis = sortedReleases(self.dist.apis(project))
+        env.logger.info(f"Found {len(apis)} {apis=}")
+
         pairs = list(pair(apis))
+        env.logger.info(f"Found {len(pairs)} {pairs=}")
+
         doneChanges = {str(x) for x in self.dist.changes(project)}
-        doneReports = {str(x) for x in self.dist.reports(project)}
         changes = [x for x in pairs if str(x) in doneChanges]
+        env.logger.info(f"Found {len(changes)} {changes=}")
+
+        doneReports = {str(x) for x in self.dist.reports(project)}
         reports = [x for x in pairs if str(x) in doneReports]
+        env.logger.info(f"Found {len(reports)} {reports=}")
 
         projectDir = self.dist.projectDir(project)
         utils.ensureDirectory(projectDir)
-        (projectDir / "index.json").write_text(
+        wroteBytes = (projectDir / "index.json").write_text(
             json.dumps(
                 {
                     "releases": [str(r) for r in releases],
@@ -244,6 +262,7 @@ class Processor:
                 }
             )
         )
+        env.logger.info(f"Saved index, {wroteBytes=}")
 
     def packages(self, *projects: str, timeout: datetime.timedelta | None = None):
         doneProjects: list[str] = []

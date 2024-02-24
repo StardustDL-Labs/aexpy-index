@@ -38,7 +38,7 @@ class DistPathBuilder:
             self.reportDir(pair.old.project)
             / f"{pair.old.version}&{pair.new.version}.json"
         )
-    
+
     def projects(self):
         for item in self.root.glob("*"):
             if item.is_dir():

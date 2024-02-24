@@ -27,7 +27,6 @@ class AexPyResult[T: Product]:
         path.write_text(self.out)
         (path.with_suffix(".log")).write_text(self.log)
 
-
 class AexPyWorker:
     def getCommandPrefix(self):
         return ["aexpy"]

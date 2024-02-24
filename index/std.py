@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from typing import override
-from aexpy.environments.conda import CondaEnvironment, CondaEnvironmentBuilder
 from aexpy.extracting.environment import getExtractorEnvironmentBuilder
 from aexpy.models import Release, ReleasePair, ApiDescription
 from aexpy import utils
@@ -19,7 +18,7 @@ from .processor import (
     ProcessState,
     Processor,
 )
-from .aexpyw import AexPyResult, AexPyWorker
+from .worker import AexPyResult, AexPyWorker
 from . import env
 
 IGNORED_MODULES = {"LICENSE"}
@@ -54,8 +53,11 @@ class StdProcessor(Processor):
     def version(self, release):
         wrapper = self.doOnce(JOB_EXTRACT, str(release))
         if isinstance(wrapper, ProcessResult):
+            env.logger.info(f"Processed {release=}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
             return
+
+        env.logger.info(f"Process {release=}")
 
         dis = self.cacheDist.preprocess(release)
         api = self.cacheDist.extract(release)
@@ -91,24 +93,30 @@ class StdProcessor(Processor):
 
                     with utils.elapsedTimer() as timer:
                         for module in modules:
-                            env.logger.info(f"Process stdlib: {module}")
-                            result = self.worker.preprocess(
-                                [
-                                    "-s",
-                                    str(rootPath),
-                                    "-p",
-                                    str(release),
-                                    "-P",
-                                    release.version,
-                                    "-m",
-                                    module,
-                                    "-",
-                                ],
-                                check=True,
-                            )
-                            result = self.worker.extract(
-                                ["-", "-", "-e", e.name], input=result.out
-                            )
+                            try:
+                                result = self.worker.preprocess(
+                                    [
+                                        "-s",
+                                        str(rootPath),
+                                        "-p",
+                                        str(release),
+                                        "-P",
+                                        release.version,
+                                        "-m",
+                                        module,
+                                        "-",
+                                    ],
+                                    check=True,
+                                )
+                                result = self.worker.extract(
+                                    ["-", "-", "-e", e.name], input=result.out
+                                )
+                            except Exception as ex:
+                                env.logger.error(
+                                    f"Failed to process std module {module} of {release}",
+                                    exc_info=ex,
+                                )
+                                continue
                             totalLog += result.log
 
                             if result.data is None:
@@ -134,32 +142,26 @@ class StdProcessor(Processor):
 
     @override
     def pair(self, pair):
-        need = not self.hasDone(JOB_DIFF, str(pair)) or not self.hasDone(
-            JOB_REPORT, str(pair)
-        )
-        if not need:
+        wrapper = self.doOnce(JOB_DIFF, str(pair))
+        if isinstance(wrapper, ProcessResult):
+            env.logger.info(f"Processed {pair=}")
+            assert wrapper.state == ProcessState.SUCCESS, "not success"
             return
+        
+        env.logger.info(f"Process {pair=}")
 
         oldA = self.cacheDist.extract(pair.old)
         newA = self.cacheDist.extract(pair.new)
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
-        wrapper = self.doOnce(JOB_DIFF, str(pair))
-        if isinstance(wrapper, ProcessResult):
-            assert wrapper.state == ProcessState.SUCCESS, "not success"
-        else:
-            with wrapper():
-                result = self.worker.diff([str(oldA), str(newA), "-"])
-                result.save(cha)
-                result.ensure().save(self.dist.diff(pair))
-        wrapper = self.doOnce(JOB_REPORT, str(pair))
-        if isinstance(wrapper, ProcessResult):
-            assert wrapper.state == ProcessState.SUCCESS, "not success"
-        else:
-            with wrapper():
-                result = self.worker.report([str(cha), "-"])
-                result.save(rep)
-                result.ensure().save(self.dist.report(pair))
+        with wrapper():
+            result = self.worker.diff([str(oldA), str(newA), "-"])
+            result.save(cha)
+            result.ensure().save(self.dist.diff(pair))
+
+            result = self.worker.report([str(cha), "-"])
+            result.save(rep)
+            result.ensure().save(self.dist.report(pair))
 
     @override
     def getReleases(self, project):

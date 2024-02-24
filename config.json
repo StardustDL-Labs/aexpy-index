@@ -1,10 +1,10 @@
 {
     "dist": "./dist",
     "cache": "./cache",
-    "packages": [
+    "validPackages": [
         "aexpy"
     ],
-    "validPackages": [
+    "packages": [
         "python",
         "aexpy",
         "generator-oj-problem",

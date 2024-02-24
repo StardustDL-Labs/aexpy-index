@@ -44,11 +44,11 @@ jobs:
     - name: Run processing
       shell: micromamba-shell {0}
       run: |
-        python -m index.mProcess
+        python -m index
     - name: Run indexing
       shell: micromamba-shell {0}
       run: |
-        python -m index.mIndex
+        python -m index index
     - name: Delete previous cache
       if: ${{ steps.cache-restore.outputs.cache-hit }}
       continue-on-error: true
