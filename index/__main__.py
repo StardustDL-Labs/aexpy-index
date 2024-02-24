@@ -8,7 +8,7 @@ from .processor import ProcessDB, Processor
 from .dist import DistPathBuilder
 
 if __name__ == "__main__":
-    initializeLogging()
+    initializeLogging(logging.INFO)
 
     isOnlyIndex = False
     path = Path("./config.json")

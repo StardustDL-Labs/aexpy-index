@@ -73,10 +73,8 @@ class ProcessDB(BaseModel):
         return res
 
 
-JOB_PREPROCESS = "preprocess"
 JOB_EXTRACT = "extract"
 JOB_DIFF = "diff"
-JOB_REPORT = "report"
 
 
 class Processor:
@@ -111,83 +109,75 @@ class Processor:
 
         return wrapper
 
-    def version(self, release: Release):
+    def processVersion(self, release: Release):
+        env.logger.info(f"Preprocess release {str(release)}")
         dis = self.cacheDist.preprocess(release)
-        wrapper = self.doOnce(JOB_PREPROCESS, str(release))
+        wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
+        utils.ensureDirectory(wheelDir)
+        result = self.worker.preprocess(
+            [
+                "-r",
+                "-p",
+                str(release),
+                str(self.worker.resolvePath(wheelDir)),
+                "-",
+            ]
+        )
+        result.save(dis)
+        result.ensure().save(self.dist.preprocess(release))
+
+        env.logger.info(f"Extract release {str(release)}")
+        api = self.cacheDist.extract(release)
+        result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
+        result.save(api)
+        result.ensure().save(self.dist.extract(release))
+
+        shutil.rmtree(wheelDir, ignore_errors=True)
+
+    def processPair(self, pair: ReleasePair):
+        old = self.cacheDist.extract(pair.old)
+        new = self.cacheDist.extract(pair.new)
+        if not old.is_file():
+            old.write_bytes(self.dist.extract(pair.old).read_bytes())
+        if not new.is_file():
+            new.write_bytes(self.dist.extract(pair.new).read_bytes())
+
+        env.logger.info(f"Diff pair {str(pair)}")
+        cha = self.cacheDist.diff(pair)
+        result = self.worker.diff(
+            [
+                str(self.worker.resolvePath(old)),
+                str(self.worker.resolvePath(new)),
+                "-",
+            ]
+        )
+        result.save(cha)
+        result.ensure().save(self.dist.diff(pair))
+
+        env.logger.info(f"Report pair {str(pair)}")
+        rep = self.cacheDist.report(pair)
+        result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
+        result.save(rep)
+        result.ensure().save(self.dist.report(pair))
+
+    def version(self, release: Release):
+        wrapper = self.doOnce(JOB_EXTRACT, str(release))
         if isinstance(wrapper, ProcessResult):
             env.logger.info(f"Preprocessed release {str(release)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
-        else:
-            wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
-            utils.ensureDirectory(wheelDir)
-            env.logger.info(f"Preprocess release {str(release)}")
-            with wrapper():
-                result = self.worker.preprocess(
-                    [
-                        "-r",
-                        "-p",
-                        str(release),
-                        str(self.worker.resolvePath(wheelDir)),
-                        "-",
-                    ]
-                )
-                result.save(dis)
-                result.ensure().save(self.dist.preprocess(release))
-
-        api = self.cacheDist.extract(release)
-        wrapper = self.doOnce(JOB_EXTRACT, str(release))
-        if isinstance(wrapper, ProcessResult):
-            env.logger.info(f"Extracted release {str(release)}")
-            assert wrapper.state == ProcessState.SUCCESS, "not success"
-        else:
-            if not dis.is_file():
-                dis.write_bytes(self.dist.preprocess(release).read_bytes())
-            env.logger.info(f"Extract release {str(release)}")
-            with wrapper():
-                result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
-                result.save(api)
-                result.ensure().save(self.dist.extract(release))
-        shutil.rmtree(wheelDir, ignore_errors=True)
+            return
+        with wrapper():
+            self.processVersion(release)
 
     def pair(self, pair: ReleasePair):
-        old = self.cacheDist.extract(pair.old)
-        new = self.cacheDist.extract(pair.new)
-
-        cha = self.cacheDist.diff(pair)
         wrapper = self.doOnce(JOB_DIFF, str(pair))
         if isinstance(wrapper, ProcessResult):
             env.logger.info(f"Diffed pair {str(pair)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
-        else:
-            if not old.is_file():
-                old.write_bytes(self.dist.extract(pair.old).read_bytes())
-            if not new.is_file():
-                new.write_bytes(self.dist.extract(pair.new).read_bytes())
-            env.logger.info(f"Diff pair {str(pair)}")
-            with wrapper():
-                result = self.worker.diff(
-                    [
-                        str(self.worker.resolvePath(old)),
-                        str(self.worker.resolvePath(new)),
-                        "-",
-                    ]
-                )
-                result.save(cha)
-                result.ensure().save(self.dist.diff(pair))
+            return
 
-        rep = self.cacheDist.report(pair)
-        wrapper = self.doOnce(JOB_REPORT, str(pair))
-        if isinstance(wrapper, ProcessResult):
-            env.logger.info(f"Reported pair {str(pair)}")
-            assert wrapper.state == ProcessState.SUCCESS, "not success"
-        else:
-            if not cha.is_file():
-                cha.write_bytes(self.dist.diff(pair).read_bytes())
-            env.logger.info(f"Report pair {str(pair)}")
-            with wrapper():
-                result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
-                result.save(rep)
-                result.ensure().save(self.dist.report(pair))
+        with wrapper():
+            self.processPair(pair)
 
     def getReleases(self, project: str):
         from .release import single

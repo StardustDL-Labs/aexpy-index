@@ -4,12 +4,16 @@ from pathlib import Path
 import sys
 from typing import override
 
-LOGGING_FORMAT = "::%(levelname)s %(message)s"
+LOGGING_FORMAT = "[%(levelname)s] %(message)s"
 LOG_INDENT = 2
+
+logHandler = logging.StreamHandler()
 
 
 def currentLogIndent():
-    return LOGGING_FORMAT.index(":")
+    return ((logHandler.formatter._fmt if logHandler.formatter else "") or "").index(
+        "["
+    )
 
 
 class LogFormatter(logging.Formatter):
@@ -19,9 +23,6 @@ class LogFormatter(logging.Formatter):
         return "\n".join(
             " " * indent + s for s in super().formatException(ei).strip().splitlines()
         )
-
-
-logHandler = logging.StreamHandler()
 
 
 def initializeLogging(level: int = logging.WARNING):
@@ -36,19 +37,17 @@ def initializeLogging(level: int = logging.WARNING):
 @contextmanager
 def indentLogging(title: str = ""):
     global LOGGING_FORMAT
-    originFormat = LOGGING_FORMAT
-    LOGGING_FORMAT = f"{' '*LOG_INDENT}{LOGGING_FORMAT}"
-    logHandler.setFormatter(logging.Formatter(LOGGING_FORMAT))
     indent = currentLogIndent()
+    originFormat = f"{' '*indent}{LOGGING_FORMAT}"
+    logHandler.setFormatter(logging.Formatter(f"{' '*LOG_INDENT}{originFormat}"))
     if title:
-        print(f"{' '*indent}::group::{title}", file=sys.stderr)
+        print(f"{' '*indent}::group::{' '*indent}{title}", file=sys.stderr)
     try:
         yield
     finally:
-        LOGGING_FORMAT = originFormat
-        logHandler.setFormatter(logging.Formatter(LOGGING_FORMAT))
+        logHandler.setFormatter(logging.Formatter(originFormat))
         if title:
-            print(f"{' '*indent}::endgroup::{title}", file=sys.stderr)
+            print(f"{' '*indent}::endgroup::", file=sys.stderr)
 
 
 def getAppDirectory():
