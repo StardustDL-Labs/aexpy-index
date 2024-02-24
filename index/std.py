@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import override
@@ -53,16 +54,18 @@ class StdProcessor(Processor):
     def version(self, release):
         wrapper = self.doOnce(JOB_EXTRACT, str(release))
         if isinstance(wrapper, ProcessResult):
-            env.logger.info(f"Processed {release=}")
+            env.logger.info(f"Processed release {str(release)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
             return
 
-        env.logger.info(f"Process {release=}")
+        env.logger.info(f"Process release {str(release)}")
 
         dis = self.cacheDist.preprocess(release)
         api = self.cacheDist.extract(release)
 
-        with self.envBuilder.use(release.version, logger=env.logger) as e:
+        envlogger = env.logger.getChild("std-env")
+        envlogger.setLevel(logging.CRITICAL)
+        with self.envBuilder.use(release.version, logger=envlogger) as e:
             with e as r:
                 with wrapper():
                     pathRes = r.runPythonText(
@@ -144,11 +147,11 @@ class StdProcessor(Processor):
     def pair(self, pair):
         wrapper = self.doOnce(JOB_DIFF, str(pair))
         if isinstance(wrapper, ProcessResult):
-            env.logger.info(f"Processed {pair=}")
+            env.logger.info(f"Processed pair {str(pair)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
             return
         
-        env.logger.info(f"Process {pair=}")
+        env.logger.info(f"Process pair {str(pair)}")
 
         oldA = self.cacheDist.extract(pair.old)
         newA = self.cacheDist.extract(pair.new)

@@ -18,9 +18,7 @@ class AexPyResult[T: Product]:
 
     def ensure(self):
         if self.code != 0:
-            env.logger.error(f"out: {self.out}")
-            env.logger.error(f"log: {self.log}")
-            assert False, f"Not success, exit code {self.code}"
+            assert False, f"Failed with exitcode {self.code}"
         return self
 
     def save(self, path: Path):
