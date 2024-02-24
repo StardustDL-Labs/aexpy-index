@@ -47,7 +47,7 @@ class AexPyWorker:
         result = AexPyResult[T](code=res.returncode, log=res.stderr, out=res.stdout)
         try:
             result.data = type.model_validate_json(result.out)
-        except Exception as ex:
+        except Exception:
             env.logger.error("Failed to parse aexpy output", exc_info=True)
             result.data = None
         return result

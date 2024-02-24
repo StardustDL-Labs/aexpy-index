@@ -39,7 +39,7 @@ class ProcessDB(BaseModel):
         try:
             yield
             self.done(job, version, ProcessState.SUCCESS)
-        except Exception as ex:
+        except Exception:
             env.logger.error(f"failed to do job: {job}", exc_info=True)
             self.done(job, version, ProcessState.FAILURE)
             raise
@@ -64,7 +64,7 @@ class ProcessDB(BaseModel):
         try:
             res = cls.model_validate_json(file.read_text())
             res.path = file
-        except Exception as ex:
+        except Exception:
             env.logger.error(
                 f"failed to load process db: {file}, use empty db", exc_info=True
             )
@@ -113,14 +113,13 @@ class Processor:
 
     def version(self, release: Release):
         dis = self.cacheDist.preprocess(release)
-        api = self.cacheDist.extract(release)
-        wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
-        utils.ensureDirectory(wheelDir)
         wrapper = self.doOnce(JOB_PREPROCESS, str(release))
         if isinstance(wrapper, ProcessResult):
             env.logger.info(f"Preprocessed release {str(release)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            wheelDir = self.cacheDist.projectDir(release.project) / "wheels"
+            utils.ensureDirectory(wheelDir)
             env.logger.info(f"Preprocess release {str(release)}")
             with wrapper():
                 result = self.worker.preprocess(
@@ -135,11 +134,14 @@ class Processor:
                 result.save(dis)
                 result.ensure().save(self.dist.preprocess(release))
 
+        api = self.cacheDist.extract(release)
         wrapper = self.doOnce(JOB_EXTRACT, str(release))
         if isinstance(wrapper, ProcessResult):
             env.logger.info(f"Extracted release {str(release)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            if not dis.is_file():
+                dis.write_bytes(self.dist.preprocess(release).read_bytes())
             env.logger.info(f"Extract release {str(release)}")
             with wrapper():
                 result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
@@ -150,14 +152,17 @@ class Processor:
     def pair(self, pair: ReleasePair):
         old = self.cacheDist.extract(pair.old)
         new = self.cacheDist.extract(pair.new)
-        cha = self.cacheDist.diff(pair)
-        rep = self.cacheDist.report(pair)
 
+        cha = self.cacheDist.diff(pair)
         wrapper = self.doOnce(JOB_DIFF, str(pair))
         if isinstance(wrapper, ProcessResult):
             env.logger.info(f"Diffed pair {str(pair)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            if not old.is_file():
+                old.write_bytes(self.dist.extract(pair.old).read_bytes())
+            if not new.is_file():
+                new.write_bytes(self.dist.extract(pair.new).read_bytes())
             env.logger.info(f"Diff pair {str(pair)}")
             with wrapper():
                 result = self.worker.diff(
@@ -170,11 +175,14 @@ class Processor:
                 result.save(cha)
                 result.ensure().save(self.dist.diff(pair))
 
+        rep = self.cacheDist.report(pair)
         wrapper = self.doOnce(JOB_REPORT, str(pair))
         if isinstance(wrapper, ProcessResult):
             env.logger.info(f"Reported pair {str(pair)}")
             assert wrapper.state == ProcessState.SUCCESS, "not success"
         else:
+            if not cha.is_file():
+                cha.write_bytes(self.dist.diff(pair).read_bytes())
             env.logger.info(f"Report pair {str(pair)}")
             with wrapper():
                 result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
@@ -191,7 +199,7 @@ class Processor:
 
         env.logger.info(f"Process package {project}")
 
-        with indentLogging():
+        with indentLogging(f"Package: {project}"):
             releases = self.getReleases(project)
             env.logger.info(
                 f"Found {len(releases)} releases: {', '.join(str(r) for r in releases).replace(f'{project}@', '')}"
@@ -200,11 +208,11 @@ class Processor:
         doneReleases: list[Release] = []
         for i, release in enumerate(releases):
             env.logger.info(f"({i+1} / {len(releases)}) Version {str(release)}")
-            with indentLogging():
+            with indentLogging(f"Version: {str(release)}"):
                 try:
                     self.version(release)
                     doneReleases.append(release)
-                except Exception as ex:
+                except Exception:
                     env.logger.error(
                         f"Failed to process release {str(release)}", exc_info=True
                     )
@@ -219,11 +227,11 @@ class Processor:
         donePairs: list[ReleasePair] = []
         for i, pair in enumerate(pairs):
             env.logger.info(f"({i+1} / {len(pairs)}) Pair {str(pair)}")
-            with indentLogging():
+            with indentLogging(f"Pair: {str(pair)}"):
                 try:
                     self.pair(pair)
                     donePairs.append(pair)
-                except Exception as ex:
+                except Exception:
                     env.logger.error(
                         f"Failed to process pair {str(pair)}", exc_info=True
                     )
@@ -303,7 +311,7 @@ class Processor:
                         std = StdProcessor(self.db, self.dist)
                         std.package(project)
                     doneProjects.append(project)
-                except Exception as ex:
+                except Exception:
                     env.logger.error(
                         f"Failed to process package: {project}", exc_info=True
                     )
@@ -320,6 +328,6 @@ class Processor:
                     std = StdProcessor(self.db, self.dist)
                     std.index(project)
                 doneProjects.append(project)
-            except Exception as ex:
+            except Exception:
                 env.logger.error(f"Failed to index package: {project}", exc_info=True)
         (env.dist / "packages.json").write_text(json.dumps(doneProjects))

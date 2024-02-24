@@ -68,7 +68,7 @@ def sortedReleases(releases: Iterable[Release]):
         versions.sort(
             key=functools.cmp_to_key(lambda x, y: compareVersion(x.version, y.version))
         )
-    except Exception as ex:
+    except Exception:
         versions = origin.copy()
         env.logger.error(
             f"Failed to sort versions by packaging.version: {versions}", exc_info=True
@@ -79,7 +79,7 @@ def sortedReleases(releases: Iterable[Release]):
                     lambda x, y: semver.compare(x.version, y.version)
                 )
             )
-        except Exception as ex:
+        except Exception:
             versions = origin.copy()
             env.logger.error(
                 f"Failed to sort versions by semver: {versions}", exc_info=True

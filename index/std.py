@@ -114,7 +114,7 @@ class StdProcessor(Processor):
                                 result = self.worker.extract(
                                     ["-", "-", "-e", e.name], input=result.out
                                 )
-                            except Exception as ex:
+                            except Exception:
                                 env.logger.error(
                                     f"Failed to process std module {module} of {release}",
                                     exc_info=True,
@@ -155,6 +155,12 @@ class StdProcessor(Processor):
 
         oldA = self.cacheDist.extract(pair.old)
         newA = self.cacheDist.extract(pair.new)
+
+        if not oldA.is_file():
+            oldA.write_bytes(self.dist.extract(pair.old).read_bytes())
+        if not newA.is_file():
+            newA.write_bytes(self.dist.extract(pair.new).read_bytes())
+
         cha = self.cacheDist.diff(pair)
         rep = self.cacheDist.report(pair)
         with wrapper():
