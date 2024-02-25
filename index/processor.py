@@ -212,7 +212,7 @@ class Processor:
         )
 
         pairs = pair(doneReleases)
-        env.logger.info(f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs)}")
+        env.logger.info(f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs).replace(f'{project}@', '')}")
 
         donePairs: list[ReleasePair] = []
         for i, pair in enumerate(pairs):
