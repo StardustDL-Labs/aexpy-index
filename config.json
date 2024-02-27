@@ -26,14 +26,17 @@
         "jmespath",
         "attrs",
         "scrapy",
-        "pillow"
+        "pillow",
+        "beautifulsoup",
+        "python-dateutil",
+        "chardet",
+        "docutils"
     ],
     "extraPackages": [
         "pandas",
         "matplotlib",
         "pyside6",
         "pyspark",
-        "scrapy",
         "numpy"
     ],
     "worker": "package"
