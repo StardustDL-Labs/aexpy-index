@@ -29,7 +29,11 @@ if __name__ == "__main__":
 
     db = ProcessDB.load(conf.db)
     db.processLimit = 500
-    worker = AexPyDockerWorker() if conf.worker == "image" else AexPyWorker()
+    worker = (
+        AexPyDockerWorker(env.compress)
+        if conf.worker == "image"
+        else AexPyWorker(env.compress)
+    )
 
     env.logger.info(f"Current AexPy version: {worker.version()}")
 

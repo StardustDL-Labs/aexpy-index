@@ -39,5 +39,6 @@
         "pyspark",
         "numpy"
     ],
-    "worker": "package"
+    "worker": "package",
+    "compress": true
 }

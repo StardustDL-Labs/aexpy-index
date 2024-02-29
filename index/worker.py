@@ -26,6 +26,9 @@ class AexPyResult[T: Product]:
 
 
 class AexPyWorker:
+    def __init__(self, compress: bool = False) -> None:
+        self.compress = compress
+
     def getCommandPrefix(self):
         return ["aexpy"]
 
@@ -38,7 +41,11 @@ class AexPyWorker:
             text=True,
             encoding="utf-8",
             capture_output=True,
-            env={**os.environ, "PYTHONUTF8": "1"},
+            env={
+                **os.environ,
+                "PYTHONUTF8": "1",
+                "AEXPY_GZIP_IO": "1" if self.compress else "0",
+            },
             **kwargs,
         )
 
@@ -85,7 +92,7 @@ class AexPyDockerWorker(AexPyWorker):
             "root",
             "--rm",
             f"stardustdl/aexpy:v{aexpy.__version__}",
-        ]
+        ] + (["--gzip"] if self.compress else [])
 
     @override
     def resolvePath(self, path):
