@@ -1,3 +1,4 @@
+import gzip
 import logging
 import os
 from pathlib import Path
@@ -80,7 +81,7 @@ class StdProcessor(Processor):
                 api = self.cacheDist.extract(release)
 
                 totalResult: ApiDescription | None = None
-                totalLog = ""
+                totalLog = b""
 
                 with utils.elapsedTimer() as timer:
                     for module in modules:
@@ -120,12 +121,14 @@ class StdProcessor(Processor):
                                 if entry.id not in totalResult:
                                     totalResult.addEntry(entry)
                 if totalResult is None:
-                    finalResult = AexPyResult(code=1, log="Failed to dump", out="")
+                    finalResult = AexPyResult(code=1, log=b"Failed to dump", out=b"")
                 else:
                     totalResult.distribution.topModules = modules
                     totalResult.duration = timer()
                     finalResult = AexPyResult(
-                        out=totalResult.model_dump_json(), log=totalLog, code=0
+                        out=gzip.compress(totalResult.model_dump_json().encode()),
+                        log=gzip.compress(totalLog),
+                        code=0,
                     )
 
                 finalResult.save(api)

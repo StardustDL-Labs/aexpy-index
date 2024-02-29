@@ -1,3 +1,4 @@
+import gzip
 import os
 from pathlib import Path
 import subprocess
@@ -11,8 +12,8 @@ from . import env
 @dataclass
 class AexPyResult[T: Product]:
     code: int
-    log: str
-    out: str
+    log: bytes
+    out: bytes
     data: T | None = None
 
     def ensure(self):
@@ -21,8 +22,8 @@ class AexPyResult[T: Product]:
         return self
 
     def save(self, path: Path):
-        path.write_text(self.out)
-        (path.with_suffix(".log")).write_text(self.log)
+        path.write_bytes(self.out)
+        (path.with_suffix(".log")).write_bytes(self.log)
 
 
 class AexPyWorker:
@@ -35,11 +36,9 @@ class AexPyWorker:
     def resolvePath(self, path: Path):
         return path
 
-    def run(self, args: list[str], **kwargs):
+    def run(self, args: list[str], **kwargs) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
             self.getCommandPrefix() + ["-vvvvv"] + args,
-            text=True,
-            encoding="utf-8",
             capture_output=True,
             env={
                 **os.environ,
@@ -53,7 +52,12 @@ class AexPyWorker:
         res = self.run(args, **kwargs)
         result = AexPyResult[T](code=res.returncode, log=res.stderr, out=res.stdout)
         try:
-            result.data = type.model_validate_json(result.out)
+            if self.compress:
+                result.data = type.model_validate_json(
+                    gzip.decompress(result.out).decode()
+                )
+            else:
+                result.data = type.model_validate_json(result.out)
         except Exception:
             env.logger.error("Failed to parse aexpy output", exc_info=True)
             result.data = None
@@ -74,7 +78,8 @@ class AexPyWorker:
     def version(self):
         return (
             self.run(["--version"], check=True)
-            .stdout.strip()
+            .stdout.decode()
+            .strip()
             .removeprefix("aexpy v")
             .removesuffix(".")
         )
