@@ -227,7 +227,7 @@ class Processor:
                     )
 
         env.logger.info(
-            f"Done {len(donePairs)} / {len([pairs])} pairs: {', '.join(str(r) for r in donePairs).replace(f'{project}@', '')}"
+            f"Done {len(donePairs)} / {len(pairs)} pairs: {', '.join(str(r) for r in donePairs).replace(f'{project}@', '')}"
         )
 
         self.index(project)
@@ -298,7 +298,7 @@ class Processor:
                     else:
                         from .std import StdProcessor
 
-                        std = StdProcessor(self.db, self.dist)
+                        std = StdProcessor(self.worker, self.db, self.dist)
                         std.package(project)
                     doneProjects.append(project)
                 except Exception:
@@ -315,7 +315,7 @@ class Processor:
                 else:
                     from .std import StdProcessor
 
-                    std = StdProcessor(self.db, self.dist)
+                    std = StdProcessor(self.worker, self.db, self.dist)
                     std.index(project)
                 doneProjects.append(project)
             except Exception:

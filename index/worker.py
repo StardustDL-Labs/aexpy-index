@@ -53,9 +53,7 @@ class AexPyWorker:
         result = AexPyResult[T](code=res.returncode, log=res.stderr, out=res.stdout)
         try:
             if self.compress:
-                result.data = type.model_validate_json(
-                    gzip.decompress(result.out).decode()
-                )
+                result.data = type.model_validate_json(gzip.decompress(result.out))
             else:
                 result.data = type.model_validate_json(result.out)
         except Exception:

@@ -41,8 +41,10 @@ def removeMain(path: Path):
 
 
 class StdProcessor(Processor):
-    def __init__(self, db: ProcessDB, dist: DistPathBuilder) -> None:
-        super().__init__(AexPyWorker(), db, dist)
+    def __init__(
+        self, worker: AexPyWorker, db: ProcessDB, dist: DistPathBuilder
+    ) -> None:
+        super().__init__(AexPyWorker(worker.compress), db, dist)
         self.envBuilder = getExtractorEnvironmentBuilder()
 
     @override
@@ -126,10 +128,13 @@ class StdProcessor(Processor):
                     totalResult.distribution.topModules = modules
                     totalResult.duration = timer()
                     finalResult = AexPyResult(
-                        out=gzip.compress(totalResult.model_dump_json().encode()),
-                        log=gzip.compress(totalLog),
+                        out=totalResult.model_dump_json().encode(),
+                        log=totalLog,
                         code=0,
                     )
+                    if self.worker.compress:
+                        finalResult.out = gzip.compress(finalResult.out)
+                        finalResult.log = gzip.compress(finalResult.log)
 
                 finalResult.save(api)
                 finalResult.ensure().save(self.dist.extract(release))
