@@ -49,6 +49,9 @@ jobs:
       shell: micromamba-shell {0}
       run: |
         python -m index index
+    - name: Remove logs
+      run: |
+        rm ./dist/*/*/*.log
     - name: Delete previous cache
       if: ${{ steps.cache-restore.outputs.cache-hit }}
       continue-on-error: true
@@ -81,9 +84,6 @@ jobs:
         path: |
           ./cache
           !./cache/*/wheels
-    - name: Remove logs
-      run: |
-        rm ./dist/*/*/*.log
     - name: Upload pages artifact
       uses: actions/upload-pages-artifact@v3
       with:

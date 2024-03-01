@@ -28,7 +28,7 @@ if __name__ == "__main__":
         conf.db = env.dist / "process.json"
 
     db = ProcessDB.load(conf.db)
-    db.processLimit = 500
+    db.processLimit = 1000
     worker = (
         AexPyDockerWorker(env.compress)
         if conf.worker == "image"
@@ -41,5 +41,5 @@ if __name__ == "__main__":
     if isOnlyIndex:
         processor.indexPackages()
     else:
-        processor.packages(*conf.packages, timeout=timedelta(hours=2.0))
+        processor.packages(*conf.packages, timeout=timedelta(hours=4.0))
     db.save()
