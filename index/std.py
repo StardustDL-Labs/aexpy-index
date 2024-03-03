@@ -88,6 +88,7 @@ class StdProcessor(Processor):
                 with utils.elapsedTimer() as timer:
                     for module in modules:
                         try:
+                            # https://peps.python.org/pep-0008/#package-and-module-names
                             result = self.worker.preprocess(
                                 [
                                     "-s",
@@ -98,6 +99,8 @@ class StdProcessor(Processor):
                                     release.version,
                                     "-m",
                                     module,
+                                    "-m",
+                                    f"_{module}",
                                     "-",
                                 ],
                                 check=True,
