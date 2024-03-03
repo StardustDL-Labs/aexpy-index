@@ -50,8 +50,9 @@ jobs:
       run: |
         python -m index index
     - name: Remove logs
+      continue-on-error: true
       run: |
-        rm ./dist/*/*/*.log
+        rm -f ./dist/*/*/*.log
     - name: Delete previous cache
       if: ${{ steps.cache-restore.outputs.cache-hit }}
       continue-on-error: true

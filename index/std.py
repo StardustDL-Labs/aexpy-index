@@ -17,12 +17,12 @@ from .processor import (
 from .worker import AexPyResult, AexPyWorker
 from . import env
 
-IGNORED_MODULES = {"LICENSE"}
+IGNORED_MODULES = {"LICENSE", "site-packages"}
 
 
 def getTopModules(path: Path):
     for p in path.glob("*"):
-        if p.stem.startswith("_") or "-" in p.stem or p.stem in IGNORED_MODULES:
+        if p.stem in IGNORED_MODULES:
             continue
         yield p.stem
 
@@ -61,7 +61,7 @@ class StdProcessor(Processor):
                     '-c "import pathlib; print(pathlib.__file__)"', check=True
                 )
                 rootPath = Path(pathRes.stdout.strip()).parent
-                removeMain(rootPath)
+                # removeMain(rootPath)
                 modules = list(getTopModules(rootPath))
 
                 result = self.worker.preprocess(
