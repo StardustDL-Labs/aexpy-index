@@ -4,13 +4,20 @@ from functools import cached_property
 import json
 from pathlib import Path
 import shutil
-
 from .dist import DistPathBuilder
 from .worker import AexPyWorker
-from aexpy.models import Release, ReleasePair
+from aexpy.models import (
+    Release,
+    ReleasePair,
+    Distribution,
+    Report,
+    ApiDescription,
+    ApiDifference,
+)
 from pydantic import BaseModel
 from enum import IntEnum
 from . import env, indentLogging
+from .stats import StatisticianWorker
 from aexpy import utils
 
 
@@ -212,7 +219,9 @@ class Processor:
         )
 
         pairs = pair(doneReleases)
-        env.logger.info(f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs).replace(f'{project}@', '')}")
+        env.logger.info(
+            f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs).replace(f'{project}@', '')}"
+        )
 
         donePairs: list[ReleasePair] = []
         for i, pair in enumerate(pairs):
@@ -233,7 +242,16 @@ class Processor:
         self.index(project)
 
     def index(self, project: str):
+        from .stats import (
+            dists as distS,
+            apis as apiS,
+            reports as reportS,
+            changes as changeS,
+        )
         from .release import pair, sortedReleases
+
+        projectDir = self.dist.projectDir(project)
+        utils.ensureDirectory(projectDir)
 
         env.logger.info(f"Index package {project}")
 
@@ -246,11 +264,17 @@ class Processor:
         env.logger.info(
             f"Found {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
         )
+        StatisticianWorker(Distribution, distS.S, projectDir / "dists.json").process(
+            (self.dist.preprocess(r) for r in distributions)
+        ).save()
 
         apis = sortedReleases(self.dist.apis(project))
         env.logger.info(
             f"Found {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
         )
+        StatisticianWorker(ApiDescription, apiS.S, projectDir / "apis.json").process(
+            (self.dist.extract(r) for r in apis)
+        ).save()
 
         pairs = list(pair(apis))
         env.logger.info(
@@ -262,15 +286,19 @@ class Processor:
         env.logger.info(
             f"Found {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
         )
+        StatisticianWorker(
+            ApiDifference, changeS.S, projectDir / "changes.json"
+        ).process((self.dist.diff(r) for r in changes)).save()
 
         doneReports = {str(x) for x in self.dist.reports(project)}
         reports = [x for x in pairs if str(x) in doneReports]
         env.logger.info(
             f"Found {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
         )
+        StatisticianWorker(Report, reportS.S, projectDir / "reports.json").process(
+            (self.dist.report(r) for r in reports)
+        ).save()
 
-        projectDir = self.dist.projectDir(project)
-        utils.ensureDirectory(projectDir)
         wroteBytes = (projectDir / "index.json").write_text(
             json.dumps(
                 {
