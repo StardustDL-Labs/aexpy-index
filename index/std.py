@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import override
 from aexpy.extracting.environment import getExtractorEnvironmentBuilder
 from aexpy.models import Release, ReleasePair, ApiDescription
+from aexpy.producers import ProduceState
 from aexpy import utils
 
 from index.dist import DistPathBuilder
@@ -129,6 +130,7 @@ class StdProcessor(Processor):
                 if totalResult is None:
                     finalResult = AexPyResult(code=1, log=b"Failed to dump", out=b"")
                 else:
+                    totalResult.state = ProduceState.Success
                     totalResult.distribution.topModules = modules
                     totalResult.duration = timer()
                     finalResult = AexPyResult(
