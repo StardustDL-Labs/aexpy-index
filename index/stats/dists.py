@@ -22,3 +22,21 @@ def filesize(data: Distribution):
 @S.count
 def filecount(data: Distribution):
     return data.fileCount
+
+
+@S.count
+def dependencies(data: Distribution):
+    return len(data.dependencies)
+
+
+@S.count
+def topmodules(data: Distribution):
+    return len(data.topModules)
+
+
+@S.count
+def pyversion(data: Distribution):
+    try:
+        return int(data.pyversion.split(".")[1])
+    except Exception:
+        return 0
