@@ -1,6 +1,6 @@
 from . import ApiStatistician
 from aexpy.models import ApiDescription
-from aexpy.models.description import ParameterKind, ItemScope
+from aexpy.models.description import ParameterKind, ItemScope, FunctionFlag, ClassFlag
 
 S = ApiStatistician()
 
@@ -78,6 +78,51 @@ def pub_modules(data: ApiDescription):
 @S.count
 def pub_attributes(data: ApiDescription):
     return attributes(data) - pri_attributes(data)
+
+
+@S.count
+def abstract_classes(data: ApiDescription):
+    return sum(1 for e in data.classes.values() if ClassFlag.Abstract in e.flags)
+
+
+@S.count
+def generic_classes(data: ApiDescription):
+    return sum(1 for e in data.classes.values() if ClassFlag.Generic in e.flags)
+
+
+@S.count
+def final_classes(data: ApiDescription):
+    return sum(1 for e in data.classes.values() if ClassFlag.Final in e.flags)
+
+
+@S.count
+def data_classes(data: ApiDescription):
+    return sum(1 for e in data.classes.values() if ClassFlag.Dataclass in e.flags)
+
+
+@S.count
+def abstract_functions(data: ApiDescription):
+    return sum(1 for e in data.functions.values() if FunctionFlag.Abstract in e.flags)
+
+
+@S.count
+def generic_functions(data: ApiDescription):
+    return sum(1 for e in data.functions.values() if FunctionFlag.Generic in e.flags)
+
+
+@S.count
+def final_functions(data: ApiDescription):
+    return sum(1 for e in data.functions.values() if FunctionFlag.Final in e.flags)
+
+
+@S.count
+def async_functions(data: ApiDescription):
+    return sum(1 for e in data.functions.values() if FunctionFlag.Async in e.flags)
+
+
+@S.count
+def override_functions(data: ApiDescription):
+    return sum(1 for e in data.functions.values() if FunctionFlag.Override in e.flags)
 
 
 @S.count

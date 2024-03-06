@@ -3,7 +3,7 @@ name: CI
 on:
   push:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 */3 * *"
 
 defaults:
   run:
@@ -45,10 +45,10 @@ jobs:
       shell: micromamba-shell {0}
       run: |
         python -m index
-    - name: Run indexing
-      shell: micromamba-shell {0}
-      run: |
-        python -m index index
+    # - name: Run indexing
+    #   shell: micromamba-shell {0}
+    #   run: |
+    #     python -m index index
     - name: Remove logs
       continue-on-error: true
       run: |
