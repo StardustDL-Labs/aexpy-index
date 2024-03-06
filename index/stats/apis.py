@@ -141,6 +141,11 @@ def typed_parameters(data: ApiDescription):
 
 
 @S.count
+def untyped_parameters(data: ApiDescription):
+    return parameters(data) - typed_parameters(data)
+
+
+@S.count
 def typed_functions(data: ApiDescription):
     return sum(
         1
