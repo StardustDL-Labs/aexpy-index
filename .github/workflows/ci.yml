@@ -41,6 +41,11 @@ jobs:
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[update]') }}
       run: |
         rm -f ./dist/process.json
+    - name: Force update std
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[std]') }}
+      shell: micromamba-shell {0}
+      run: |
+        python -m index clear-std
     - name: Run processing
       shell: micromamba-shell {0}
       run: |

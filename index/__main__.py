@@ -10,16 +10,15 @@ from .dist import DistPathBuilder
 if __name__ == "__main__":
     initializeLogging(logging.INFO)
 
-    isOnlyIndex = False
+    command = "process"
     path = Path("./config.json")
 
     match sys.argv:
-        case [_, command]:
-            if command == "index":
-                isOnlyIndex = True
-        case [_, command, cpath]:
-            if command == "index":
-                isOnlyIndex = True
+        case [_, cmd]:
+            command = cmd
+        case [_, cmd, cpath]:
+            command = cmd
+            path = Path(cpath)
 
     conf = env.load(path)
     env.prepare()
@@ -38,8 +37,12 @@ if __name__ == "__main__":
     env.logger.info(f"Current AexPy version: {worker.version()}")
 
     processor = Processor(worker, db, DistPathBuilder(env.dist))
-    if isOnlyIndex:
-        processor.indexPackages()
-    else:
-        processor.packages(*conf.packages, timeout=timedelta(hours=4.0))
+
+    match command:
+        case "index":
+            processor.indexPackages()
+        case "clear-std":
+            db.data = {k: v for k, v in db.data.items() if "python@" not in k}
+        case _:
+            processor.packages(*conf.packages, timeout=timedelta(hours=4.0))
     db.save()

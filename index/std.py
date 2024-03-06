@@ -21,6 +21,7 @@ IGNORED_MODULES = {"LICENSE", "site-packages"}
 
 
 def getTopModules(path: Path):
+    yield "builtins"
     for p in path.glob("*"):
         if p.stem in IGNORED_MODULES:
             continue
