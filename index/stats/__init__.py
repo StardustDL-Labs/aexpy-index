@@ -110,15 +110,18 @@ class StatisticianWorker[T: Product]:
     def save(self):
         self.target.write_text(json.dumps(self.stat.data))
 
-    def process(self, files: Iterable[Path]):
+    def process(self, files: Iterable[Path | T]):
         from aexpy.io import load
 
         def loading():
             for file in files:
-                try:
-                    yield load(file, self.type)
-                except Exception:
-                    pass
+                if isinstance(file, Path):
+                    try:
+                        yield load(file, self.type)
+                    except Exception:
+                        pass
+                else:
+                    yield file
 
         self.stat.collect(loading())
         return self

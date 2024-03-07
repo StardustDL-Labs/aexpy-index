@@ -2,13 +2,16 @@ from contextlib import contextmanager
 import datetime
 from functools import cached_property
 import json
+import os
 from pathlib import Path
 import shutil
+from typing import Iterable
 from .dist import DistPathBuilder
 from .worker import AexPyWorker
 from aexpy.models import (
     Release,
     ReleasePair,
+    Product,
     Distribution,
     Report,
     ApiDescription,
@@ -242,6 +245,20 @@ class Processor:
 
         self.index(project)
 
+    def cleanLoad[T: Product](self, type: type[T], paths: Iterable[Path]):
+        from aexpy.io import load
+
+        for path in paths:
+            try:
+                yield load(path, type)
+            except Exception:
+                env.logger.error(
+                    f"Failed to load {type.__class__.__qualname__} from {path}",
+                    exc_info=True,
+                )
+                env.logger.warning(f"Remove {path} because of the loading failure.")
+                os.remove(path)
+
     def index(self, project: str):
         from .stats import (
             dists as distS,
@@ -265,16 +282,32 @@ class Processor:
         env.logger.info(
             f"Found {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
         )
+        loaded = list(
+            self.cleanLoad(
+                Distribution, (self.dist.preprocess(r) for r in distributions)
+            )
+        )
+        distributions = [f.single() for f in loaded]
+        env.logger.info(
+            f"Loaded {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
+        )
         StatisticianWorker(Distribution, distS.S, projectDir / "dists.json").process(
-            (self.dist.preprocess(r) for r in distributions)
+            loaded
         ).save()
 
         apis = sortedReleases(self.dist.apis(project))
         env.logger.info(
             f"Found {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
         )
+        loaded = list(
+            self.cleanLoad(ApiDescription, (self.dist.extract(r) for r in apis))
+        )
+        apis = [f.single() for f in loaded]
+        env.logger.info(
+            f"Loaded {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
+        )
         StatisticianWorker(ApiDescription, apiS.S, projectDir / "apis.json").process(
-            (self.dist.extract(r) for r in apis)
+            loaded
         ).save()
 
         pairs = list(pair(apis))
@@ -287,18 +320,32 @@ class Processor:
         env.logger.info(
             f"Found {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
         )
+        loaded = list(
+            self.cleanLoad(ApiDifference, (self.dist.diff(r) for r in changes))
+        )
+        changes = [f.pair() for f in loaded]
+        env.logger.info(
+            f"Loaded {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
+        )
         StatisticianWorker(
             ApiDifference, changeS.S, projectDir / "changes.json"
-        ).process((self.dist.diff(r) for r in changes)).save()
+        ).process(loaded).save()
 
         doneReports = {str(x) for x in self.dist.reports(project)}
         reports = [x for x in pairs if str(x) in doneReports]
         env.logger.info(
             f"Found {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
         )
+        loaded = list(self.cleanLoad(Report, (self.dist.report(r) for r in reports)))
+        reports = [f.pair() for f in loaded]
+        env.logger.info(
+            f"Loaded {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
+        )
         StatisticianWorker(Report, reportS.S, projectDir / "reports.json").process(
-            (self.dist.report(r) for r in reports)
+            loaded
         ).save()
+
+        releases = sortedReleases(set(releases) | set(distributions) | set(apis))
 
         wroteBytes = (projectDir / "index.json").write_text(
             json.dumps(
@@ -306,9 +353,18 @@ class Processor:
                     "releases": [str(r) for r in releases],
                     "distributions": [str(r) for r in distributions],
                     "apis": [str(r) for r in apis],
-                    "pairs": [str(r) for r in pairs],
-                    "changes": [str(r) for r in changes],
-                    "reports": [str(r) for r in reports],
+                    "pairs": [
+                        f"{r.old.project}@{r.old.version}&{r.new.version}"
+                        for r in pairs
+                    ],
+                    "changes": [
+                        f"{r.old.project}@{r.old.version}&{r.new.version}"
+                        for r in changes
+                    ],
+                    "reports": [
+                        f"{r.old.project}@{r.old.version}&{r.new.version}"
+                        for r in reports
+                    ],
                 }
             )
         )
