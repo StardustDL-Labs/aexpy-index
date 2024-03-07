@@ -40,7 +40,7 @@ jobs:
     - name: Force update
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[update]') }}
       run: |
-        rm -f ./dist/process.json
+        rm -f ./dist/indexer.json
     - name: Force update std
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '[std]') }}
       shell: micromamba-shell {0}

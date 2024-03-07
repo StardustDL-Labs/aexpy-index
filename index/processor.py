@@ -34,6 +34,7 @@ class ProcessResult(BaseModel):
 
 class ProcessDB(BaseModel):
     path: Path
+    name: str = "aexpy-index"
     data: dict[str, ProcessResult] = {}
     processLimit: int | None = None
     processCount: int = 0
@@ -75,7 +76,7 @@ class ProcessDB(BaseModel):
             env.logger.error(
                 f"failed to load process db: {file}, use empty db", exc_info=True
             )
-            res = cls(path=file)
+            res = cls(name="", path=file)
         res.processCount = 0
         return res
 

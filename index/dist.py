@@ -1,3 +1,4 @@
+from functools import cached_property
 from pathlib import Path
 from aexpy.models import Release, ReleasePair
 from aexpy import utils
@@ -6,6 +7,10 @@ from aexpy import utils
 class DistPathBuilder:
     def __init__(self, root: Path) -> None:
         self.root = root
+
+    @cached_property
+    def dataDir(self):
+        return self.safeFilePath(self.root / "data")
 
     def safeFilePath(self, path: Path):
         utils.ensureDirectory(path.parent)
@@ -40,12 +45,12 @@ class DistPathBuilder:
         )
 
     def projects(self):
-        for item in self.root.glob("*"):
+        for item in self.dataDir.glob("*"):
             if item.is_dir():
                 yield item.stem
 
     def projectDir(self, project: str):
-        return self.root / project
+        return self.dataDir / project
 
     def distributionDir(self, project: str):
         return self.projectDir(project) / "distributions"

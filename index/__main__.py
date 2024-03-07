@@ -27,6 +27,7 @@ if __name__ == "__main__":
         conf.db = env.dist / "process.json"
 
     db = ProcessDB.load(conf.db)
+    db.name = "aexpy-index"
     db.processLimit = 1000
     worker = (
         AexPyDockerWorker(env.compress)
