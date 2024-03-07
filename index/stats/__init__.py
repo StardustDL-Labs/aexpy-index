@@ -98,14 +98,19 @@ class ReportStatistician(PairProductStatistician[Report]):
 
 
 class StatisticianWorker[T: Product]:
-    def __init__(self, type: type[T], stat: Statistician[T], target: Path) -> None:
+    def __init__(
+        self, type: type[T], stat: Statistician[T], target: Path, redo: bool = False
+    ) -> None:
         self.type = type
         self.target = target
 
-        try:
-            self.stat = stat.renew(json.loads(self.target.read_text()))
-        except Exception:
+        if redo:
             self.stat = stat.renew()
+        else:
+            try:
+                self.stat = stat.renew(json.loads(self.target.read_text()))
+            except Exception:
+                self.stat = stat.renew()
 
     def save(self):
         self.target.write_text(json.dumps(self.stat.data))

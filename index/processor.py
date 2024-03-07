@@ -291,9 +291,9 @@ class Processor:
         env.logger.info(
             f"Loaded {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
         )
-        StatisticianWorker(Distribution, distS.S, projectDir / "dists.json").process(
-            loaded
-        ).save()
+        StatisticianWorker(
+            Distribution, distS.S, projectDir / "dists.json", redo=True
+        ).process(loaded).save()
 
         apis = sortedReleases(self.dist.apis(project))
         env.logger.info(
@@ -306,9 +306,9 @@ class Processor:
         env.logger.info(
             f"Loaded {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
         )
-        StatisticianWorker(ApiDescription, apiS.S, projectDir / "apis.json").process(
-            loaded
-        ).save()
+        StatisticianWorker(
+            ApiDescription, apiS.S, projectDir / "apis.json", redo=True
+        ).process(loaded).save()
 
         pairs = list(pair(apis))
         env.logger.info(
@@ -328,7 +328,7 @@ class Processor:
             f"Loaded {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
         )
         StatisticianWorker(
-            ApiDifference, changeS.S, projectDir / "changes.json"
+            ApiDifference, changeS.S, projectDir / "changes.json", redo=True
         ).process(loaded).save()
 
         doneReports = {str(x) for x in self.dist.reports(project)}
@@ -341,9 +341,9 @@ class Processor:
         env.logger.info(
             f"Loaded {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
         )
-        StatisticianWorker(Report, reportS.S, projectDir / "reports.json").process(
-            loaded
-        ).save()
+        StatisticianWorker(
+            Report, reportS.S, projectDir / "reports.json", redo=True
+        ).process(loaded).save()
 
         # releases = sortedReleases(set(releases) | set(distributions) | set(apis))
 
@@ -353,18 +353,9 @@ class Processor:
                     "releases": [str(r) for r in releases],
                     "distributions": [str(r) for r in distributions],
                     "apis": [str(r) for r in apis],
-                    "pairs": [
-                        f"{r.old.project}@{r.old.version}&{r.new.version}"
-                        for r in pairs
-                    ],
-                    "changes": [
-                        f"{r.old.project}@{r.old.version}&{r.new.version}"
-                        for r in changes
-                    ],
-                    "reports": [
-                        f"{r.old.project}@{r.old.version}&{r.new.version}"
-                        for r in reports
-                    ],
+                    "pairs": [str(r) for r in pairs],
+                    "changes": [str(r) for r in changes],
+                    "reports": [str(r) for r in reports],
                 }
             )
         )
