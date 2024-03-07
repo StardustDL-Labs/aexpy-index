@@ -30,7 +30,10 @@
         "beautifulsoup",
         "python-dateutil",
         "chardet",
-        "docutils"
+        "docutils",
+        "z3-solver",
+        "sympy",
+        "pandas"
     ],
     "extraPackages": [
         "pandas",
