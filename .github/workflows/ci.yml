@@ -72,9 +72,6 @@ jobs:
       with:
         path: ./dist
         key: ${{ env.CACHEKEY }}
-    - name: Show dist DB
-      run: |
-        cat ./dist/process.json | python -m json.tool
     - name: Show storage usage
       run: |
         sudo df -h

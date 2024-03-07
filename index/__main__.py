@@ -25,16 +25,8 @@ if __name__ == "__main__":
     conf = env.load(path)
     env.prepare()
 
-    if (env.dist / "process.json").is_file():
-        shutil.copytree(env.dist, env.dist.parent / "temp" / "data")
-        shutil.rmtree(env.dist)
-        shutil.move(env.dist.parent / "temp", env.dist)
-        shutil.copyfile(env.dist / "data" / "process.json", env.dist / "indexer.json")
-        os.remove(env.dist / "data" / "process.json")
-
     if conf.db is None:
         conf.db = env.dist / "indexer.json"
-    exit(0)
 
     db = ProcessDB.load(conf.db)
     db.name = "aexpy-index"
