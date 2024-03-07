@@ -345,7 +345,7 @@ class Processor:
             loaded
         ).save()
 
-        releases = sortedReleases(set(releases) | set(distributions) | set(apis))
+        # releases = sortedReleases(set(releases) | set(distributions) | set(apis))
 
         wroteBytes = (projectDir / "index.json").write_text(
             json.dumps(
