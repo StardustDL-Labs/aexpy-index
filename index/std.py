@@ -63,7 +63,7 @@ class StdProcessor(Processor):
                     '-c "import pathlib; print(pathlib.__file__)"', check=True
                 )
                 rootPath = Path(pathRes.stdout.strip()).parent
-                # removeMain(rootPath)
+                removeMain(rootPath)
                 modules = list(getTopModules(rootPath))
 
                 result = self.worker.preprocess(

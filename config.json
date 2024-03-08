@@ -31,11 +31,10 @@
         "python-dateutil",
         "chardet",
         "docutils",
-        "z3-solver",
-        "sympy",
-        "pandas"
+        "z3-solver"
     ],
     "extraPackages": [
+        "sympy",
         "pandas",
         "matplotlib",
         "pyside6",
