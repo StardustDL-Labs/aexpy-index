@@ -4,6 +4,9 @@ import shutil
 import sys
 from pathlib import Path
 import logging
+
+from aexpy.models import Release
+from .std import StdProcessor
 from . import env, initializeLogging
 from .worker import AexPyDockerWorker, AexPyWorker
 from .processor import ProcessDB, Processor
@@ -40,6 +43,9 @@ if __name__ == "__main__":
     env.logger.info(f"Current AexPy version: {worker.version()}")
 
     processor = Processor(worker, db, DistPathBuilder(env.dist))
+
+    # std = StdProcessor(processor.worker, processor.db, processor.dist)
+    # std.version(Release(project="python", version="3.12"))
 
     match command:
         case "index":

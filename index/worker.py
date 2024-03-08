@@ -44,6 +44,7 @@ class AexPyWorker:
                 **os.environ,
                 "PYTHONUTF8": "1",
                 "AEXPY_GZIP_IO": "1" if self.compress else "0",
+                "AEXPY_ENV_PROVIDER": aexpy.getEnvironmentManager(),
             },
             **kwargs,
         )
