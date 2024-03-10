@@ -46,7 +46,7 @@ class StdProcessor(Processor):
     def __init__(
         self, worker: AexPyWorker, db: ProcessDB, dist: DistPathBuilder
     ) -> None:
-        super().__init__(AexPyWorker(worker.compress), db, dist)
+        super().__init__(AexPyWorker(verbose=worker.verbose, compress=worker.compress), db, dist)
         self.envBuilder = getExtractorEnvironmentBuilder()
 
     @override
@@ -133,6 +133,9 @@ class StdProcessor(Processor):
                     totalResult.state = ProduceState.Success
                     totalResult.distribution.topModules = modules
                     totalResult.duration = timer()
+                    totalResult.calcCallers()
+                    totalResult.calcSubclasses()
+                    
                     finalResult = AexPyResult(
                         out=totalResult.model_dump_json().encode(),
                         log=totalLog,

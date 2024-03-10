@@ -35,14 +35,14 @@ if __name__ == "__main__":
     db.name = "aexpy-index"
     db.processLimit = 1000
     worker = (
-        AexPyDockerWorker(env.compress)
+        AexPyDockerWorker(env.cache, verbose=5, compress=env.compress, logger=env.logger)
         if conf.worker == "image"
-        else AexPyWorker(env.compress)
+        else AexPyWorker(verbose=5, compress=env.compress, logger=env.logger)
     )
 
     env.logger.info(f"Current AexPy version: {worker.version()}")
 
-    processor = Processor(worker, db, DistPathBuilder(env.dist))
+    processor = Processor(worker, db, DistPathBuilder(env.dist / "data"))
 
     # std = StdProcessor(processor.worker, processor.db, processor.dist)
     # std.version(Release(project="python", version="3.12"))

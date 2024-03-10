@@ -1,32 +1,27 @@
-from functools import cached_property
 from pathlib import Path
 from aexpy.models import Release, ReleasePair
 from aexpy import utils
 
 
 class DistPathBuilder:
-    def __init__(self, root: Path) -> None:
-        self.root = root
+    def __init__(self, /, root: Path) -> None:
+        self.root = self.safeFilePath(root)
 
-    @cached_property
-    def dataDir(self):
-        return self.safeFilePath(self.root / "data")
-
-    def safeFilePath(self, path: Path):
+    def safeFilePath(self, /, path: Path):
         utils.ensureDirectory(path.parent)
         return path.resolve()
 
-    def preprocess(self, release: Release):
+    def preprocess(self, /, release: Release):
         return self.safeFilePath(
             self.distributionDir(release.project) / f"{release.version}.json"
         )
 
-    def extract(self, release: Release):
+    def extract(self, /, release: Release):
         return self.safeFilePath(
             self.apiDir(release.project) / f"{release.version}.json"
         )
 
-    def diff(self, pair: ReleasePair):
+    def diff(self, /, pair: ReleasePair):
         assert (
             pair.old.project == pair.new.project
         ), f"ReleasePair not same project: {pair}"
@@ -35,7 +30,7 @@ class DistPathBuilder:
             / f"{pair.old.version}&{pair.new.version}.json"
         )
 
-    def report(self, pair: ReleasePair):
+    def report(self, /, pair: ReleasePair):
         assert (
             pair.old.project == pair.new.project
         ), f"ReleasePair not same project: {pair}"
@@ -45,40 +40,40 @@ class DistPathBuilder:
         )
 
     def projects(self):
-        for item in self.dataDir.glob("*"):
+        for item in self.root.glob("*"):
             if item.is_dir():
                 yield item.stem
 
-    def projectDir(self, project: str):
-        return self.dataDir / project
+    def projectDir(self, /, project: str):
+        return self.root / project
 
-    def distributionDir(self, project: str):
+    def distributionDir(self, /, project: str):
         return self.projectDir(project) / "distributions"
 
-    def apiDir(self, project: str):
+    def apiDir(self, /, project: str):
         return self.projectDir(project) / "apis"
 
-    def changeDir(self, project: str):
+    def changeDir(self, /, project: str):
         return self.projectDir(project) / "changes"
 
-    def reportDir(self, project: str):
+    def reportDir(self, /, project: str):
         return self.projectDir(project) / "reports"
 
-    def distributions(self, project: str):
+    def distributions(self, /, project: str):
         dir = self.distributionDir(project)
         if not dir.is_dir():
             return
         for item in dir.glob("*.json"):
             yield Release(project=project, version=item.stem)
 
-    def apis(self, project: str):
+    def apis(self, /, project: str):
         dir = self.apiDir(project)
         if not dir.is_dir():
             return
         for item in dir.glob("*.json"):
             yield Release(project=project, version=item.stem)
 
-    def changes(self, project: str):
+    def changes(self, /, project: str):
         dir = self.changeDir(project)
         if not dir.is_dir():
             return
@@ -89,7 +84,7 @@ class DistPathBuilder:
                 new=Release(project=project, version=new),
             )
 
-    def reports(self, project: str):
+    def reports(self, /, project: str):
         dir = self.reportDir(project)
         if not dir.is_dir():
             return
