@@ -381,7 +381,7 @@ class Processor:
                     env.logger.error(
                         f"Failed to process package: {project}", exc_info=True
                     )
-        (env.dist / "packages.json").write_text(json.dumps(doneProjects))
+        (self.dist.root / "packages.json").write_text(json.dumps(doneProjects))
 
     def indexPackages(self):
         doneProjects: list[str] = []
@@ -397,4 +397,4 @@ class Processor:
                 doneProjects.append(project)
             except Exception:
                 env.logger.error(f"Failed to index package: {project}", exc_info=True)
-        (env.dist / "packages.json").write_text(json.dumps(doneProjects))
+        (self.dist.root / "packages.json").write_text(json.dumps(doneProjects))
