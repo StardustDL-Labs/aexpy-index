@@ -57,7 +57,7 @@ jobs:
     - name: Remove logs
       continue-on-error: true
       run: |
-        rm -f ./dist/*/*/*.log
+        rm -f ./dist/data/*/*/*.log
     - name: Delete previous cache
       if: ${{ steps.cache-restore.outputs.cache-hit }}
       continue-on-error: true
