@@ -1,14 +1,16 @@
-from datetime import datetime
 import functools
-from typing import Any, Callable, Iterable
-import requests
-from . import env
 import json
 import re
+from datetime import datetime
+from typing import Any, Callable, Iterable
+
+import requests
 import semver
-from packaging import version as pkgVersion
 from aexpy import utils
 from aexpy.models import Release, ReleasePair
+from packaging import version as pkgVersion
+
+from . import env
 
 FILE_ORIGIN = "https://files.pythonhosted.org/"
 FILE_TSINGHUA = "https://pypi.tuna.tsinghua.edu.cn/"

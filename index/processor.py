@@ -1,27 +1,40 @@
-from contextlib import contextmanager
 import datetime
-from functools import cached_property
 import json
 import os
-from pathlib import Path
 import shutil
-from typing import Iterable
-from .dist import DistPathBuilder
-from .worker import AexPyWorker
+from contextlib import contextmanager
+from enum import IntEnum
+from functools import cached_property
+from pathlib import Path
+from typing import Iterable, override
+
+from aexpy import utils
+from aexpy.io import StreamProductSaver
 from aexpy.models import (
-    Release,
-    ReleasePair,
-    Product,
-    Distribution,
-    Report,
     ApiDescription,
     ApiDifference,
+    Distribution,
+    Product,
+    Release,
+    ReleasePair,
+    Report,
 )
+from aexpy.producers import produce
+from aexpy.tools.models import StatSummary
+from aexpy.tools.paths import DistPathBuilder as BasePathBuilder
+from aexpy.tools.stats import StatisticianWorker
+from aexpy.tools.workers import AexPyWorker
 from pydantic import BaseModel
-from enum import IntEnum
+
 from . import env, indentLogging
-from .stats import StatisticianWorker
-from aexpy import utils
+
+
+class DistPathBuilder(BasePathBuilder):
+    @override
+    def resolved(self, /, path):
+        result = super().resolved(path)
+        utils.ensureDirectory(result.parent)
+        return result
 
 
 class ProcessState(IntEnum):
@@ -130,8 +143,7 @@ class Processor:
                 "-r",
                 "-p",
                 str(release),
-                str(self.worker.resolvePath(wheelDir)),
-                "-",
+                wheelDir,
             ]
         )
         result.save(dis)
@@ -139,7 +151,7 @@ class Processor:
 
         env.logger.info(f"Extract release {str(release)}")
         api = self.cacheDist.extract(release)
-        result = self.worker.extract([str(self.worker.resolvePath(dis)), "-"])
+        result = self.worker.extract([dis])
         result.save(api)
         result.ensure().save(self.dist.extract(release))
 
@@ -155,19 +167,13 @@ class Processor:
 
         env.logger.info(f"Diff pair {str(pair)}")
         cha = self.cacheDist.diff(pair)
-        result = self.worker.diff(
-            [
-                str(self.worker.resolvePath(old)),
-                str(self.worker.resolvePath(new)),
-                "-",
-            ]
-        )
+        result = self.worker.diff([old, new])
         result.save(cha)
         result.ensure().save(self.dist.diff(pair))
 
         env.logger.info(f"Report pair {str(pair)}")
         rep = self.cacheDist.report(pair)
-        result = self.worker.report([str(self.worker.resolvePath(cha)), "-"])
+        result = self.worker.report([cha])
         result.save(rep)
         result.ensure().save(self.dist.report(pair))
 
@@ -260,12 +266,6 @@ class Processor:
                 os.remove(path)
 
     def index(self, project: str):
-        from .stats import (
-            dists as distS,
-            apis as apiS,
-            reports as reportS,
-            changes as changeS,
-        )
         from .release import pair, sortedReleases
 
         projectDir = self.dist.projectDir(project)
@@ -273,79 +273,80 @@ class Processor:
 
         env.logger.info(f"Index package {project}")
 
-        releases = sortedReleases(self.getReleases(project))
-        env.logger.info(
-            f"Found {len(releases)} releases: {', '.join(str(r) for r in releases).replace(f'{project}@', '')}"
-        )
+        with produce(
+            StatSummary(), service="aexpy-index", logger=env.logger
+        ) as context:
+            with context.using(StatisticianWorker()) as worker:
+                releases = sortedReleases(self.getReleases(project))
+                env.logger.info(
+                    f"Found {len(releases)} releases: {', '.join(str(r) for r in releases).replace(f'{project}@', '')}"
+                )
 
-        distributions = sortedReleases(self.dist.distributions(project))
-        env.logger.info(
-            f"Found {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
-        )
-        loaded = list(
-            self.cleanLoad(
-                Distribution, (self.dist.preprocess(r) for r in distributions)
-            )
-        )
-        distributions = [f.single() for f in loaded]
-        env.logger.info(
-            f"Loaded {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
-        )
-        StatisticianWorker(
-            Distribution, distS.S, projectDir / "dists.json", redo=True
-        ).process(loaded).save()
+                distributions = sortedReleases(self.dist.distributions(project))
+                env.logger.info(
+                    f"Found {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
+                )
+                loaded = list(
+                    self.cleanLoad(
+                        Distribution, (self.dist.preprocess(r) for r in distributions)
+                    )
+                )
+                worker.count(loaded, context.product)
+                distributions = [f.single() for f in loaded]
+                env.logger.info(
+                    f"Loaded {len(distributions)} distributions: {', '.join(str(r) for r in distributions).replace(f'{project}@', '')}"
+                )
 
-        apis = sortedReleases(self.dist.apis(project))
-        env.logger.info(
-            f"Found {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
-        )
-        loaded = list(
-            self.cleanLoad(ApiDescription, (self.dist.extract(r) for r in apis))
-        )
-        apis = [f.single() for f in loaded]
-        env.logger.info(
-            f"Loaded {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
-        )
-        StatisticianWorker(
-            ApiDescription, apiS.S, projectDir / "apis.json", redo=True
-        ).process(loaded).save()
+                apis = sortedReleases(self.dist.apis(project))
+                env.logger.info(
+                    f"Found {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
+                )
+                loaded = list(
+                    self.cleanLoad(ApiDescription, (self.dist.extract(r) for r in apis))
+                )
+                worker.count(loaded, context.product)
+                apis = [f.single() for f in loaded]
+                env.logger.info(
+                    f"Loaded {len(apis)} apis: {', '.join(str(r) for r in apis).replace(f'{project}@', '')}"
+                )
 
-        pairs = list(pair(apis))
-        env.logger.info(
-            f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs).replace(f'{project}@', '')}"
-        )
+                pairs = list(pair(apis))
+                env.logger.info(
+                    f"Found {len(pairs)} pairs: {', '.join(str(r) for r in pairs).replace(f'{project}@', '')}"
+                )
 
-        doneChanges = {str(x) for x in self.dist.changes(project)}
-        changes = [x for x in pairs if str(x) in doneChanges]
-        env.logger.info(
-            f"Found {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
-        )
-        loaded = list(
-            self.cleanLoad(ApiDifference, (self.dist.diff(r) for r in changes))
-        )
-        changes = [f.pair() for f in loaded]
-        env.logger.info(
-            f"Loaded {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
-        )
-        StatisticianWorker(
-            ApiDifference, changeS.S, projectDir / "changes.json", redo=True
-        ).process(loaded).save()
+                doneChanges = {str(x) for x in self.dist.changes(project)}
+                changes = [x for x in pairs if str(x) in doneChanges]
+                env.logger.info(
+                    f"Found {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
+                )
+                loaded = list(
+                    self.cleanLoad(ApiDifference, (self.dist.diff(r) for r in changes))
+                )
+                worker.count(loaded, context.product)
+                changes = [f.pair() for f in loaded]
+                env.logger.info(
+                    f"Loaded {len(changes)} changes: {', '.join(str(r) for r in changes).replace(f'{project}@', '')}"
+                )
 
-        doneReports = {str(x) for x in self.dist.reports(project)}
-        reports = [x for x in pairs if str(x) in doneReports]
-        env.logger.info(
-            f"Found {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
-        )
-        loaded = list(self.cleanLoad(Report, (self.dist.report(r) for r in reports)))
-        reports = [f.pair() for f in loaded]
-        env.logger.info(
-            f"Loaded {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
-        )
-        StatisticianWorker(
-            Report, reportS.S, projectDir / "reports.json", redo=True
-        ).process(loaded).save()
+                doneReports = {str(x) for x in self.dist.reports(project)}
+                reports = [x for x in pairs if str(x) in doneReports]
+                env.logger.info(
+                    f"Found {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
+                )
+                loaded = list(
+                    self.cleanLoad(Report, (self.dist.report(r) for r in reports))
+                )
+                worker.count(loaded, context.product)
+                reports = [f.pair() for f in loaded]
+                env.logger.info(
+                    f"Loaded {len(reports)} reports: {', '.join(str(r) for r in reports).replace(f'{project}@', '')}"
+                )
 
-        # releases = sortedReleases(set(releases) | set(distributions) | set(apis))
+        with (projectDir / "stats.json").open("wb") as f:
+            StreamProductSaver(f).save(context.product, context.log)
+
+        releases = sortedReleases(set(releases) | set(distributions) | set(apis))
 
         wroteBytes = (projectDir / "index.json").write_text(
             json.dumps(

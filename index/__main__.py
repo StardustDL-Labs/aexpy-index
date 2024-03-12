@@ -1,16 +1,16 @@
-from datetime import timedelta
+import logging
 import os
 import shutil
 import sys
+from datetime import timedelta
 from pathlib import Path
-import logging
 
 from aexpy.models import Release
-from .std import StdProcessor
+from aexpy.tools.workers import AexPyDockerWorker, AexPyWorker
+
 from . import env, initializeLogging
-from .worker import AexPyDockerWorker, AexPyWorker
-from .processor import ProcessDB, Processor
-from .dist import DistPathBuilder
+from .processor import DistPathBuilder, ProcessDB, Processor
+from .std import StdProcessor
 
 if __name__ == "__main__":
     initializeLogging(logging.INFO)
@@ -34,10 +34,8 @@ if __name__ == "__main__":
     db = ProcessDB.load(conf.db)
     db.name = "aexpy-index"
     db.processLimit = 1000
-    worker = (
-        AexPyDockerWorker(env.cache, verbose=5, compress=env.compress, logger=env.logger)
-        if conf.worker == "image"
-        else AexPyWorker(verbose=5, compress=env.compress, logger=env.logger)
+    worker = (AexPyDockerWorker if conf.worker == "image" else AexPyWorker)(
+        cwd=env.cache, verbose=5, compress=env.compress, logger=env.logger
     )
 
     env.logger.info(f"Current AexPy version: {worker.version()}")

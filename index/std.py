@@ -3,20 +3,17 @@ import logging
 import os
 from pathlib import Path
 from typing import override
-from aexpy.extracting.environment import getExtractorEnvironmentBuilder
-from aexpy.models import Release, ReleasePair, ApiDescription
-from aexpy.producers import ProduceState
-from aexpy import utils
 
-from index.dist import DistPathBuilder
+from aexpy import utils
+from aexpy.extracting.environment import getExtractorEnvironmentBuilder
+from aexpy.models import ApiDescription, Release, ReleasePair
+from aexpy.producers import ProduceState
+from aexpy.tools.workers import AexPyResult, AexPyWorker
+
 from index.processor import ProcessDB
 
-from .processor import (
-    ProcessDB,
-    Processor,
-)
-from .worker import AexPyResult, AexPyWorker
 from . import env
+from .processor import DistPathBuilder, ProcessDB, Processor
 
 IGNORED_MODULES = {"LICENSE", "site-packages"}
 
@@ -46,7 +43,9 @@ class StdProcessor(Processor):
     def __init__(
         self, worker: AexPyWorker, db: ProcessDB, dist: DistPathBuilder
     ) -> None:
-        super().__init__(AexPyWorker(verbose=worker.verbose, compress=worker.compress), db, dist)
+        super().__init__(
+            AexPyWorker(verbose=worker.verbose, compress=worker.compress), db, dist
+        )
         self.envBuilder = getExtractorEnvironmentBuilder()
 
     @override
@@ -75,7 +74,6 @@ class StdProcessor(Processor):
                         "-P",
                         release.version,
                         *sum([["-m", m] for m in modules], start=[]),
-                        "-",
                     ]
                 )
                 result.save(dis)
@@ -103,12 +101,11 @@ class StdProcessor(Processor):
                                     module,
                                     "-m",
                                     f"_{module}",
-                                    "-",
                                 ],
                                 check=True,
                             )
                             result = self.worker.extract(
-                                ["-", "-", "-e", e.name], input=result.out
+                                ["-", "-e", e.name], input=result.out
                             )
                         except Exception:
                             env.logger.error(
@@ -135,7 +132,7 @@ class StdProcessor(Processor):
                     totalResult.duration = timer()
                     totalResult.calcCallers()
                     totalResult.calcSubclasses()
-                    
+
                     finalResult = AexPyResult(
                         out=totalResult.model_dump_json().encode(),
                         log=totalLog,
@@ -159,13 +156,13 @@ class StdProcessor(Processor):
 
         env.logger.info(f"Diff stdlib {str(pair)}")
         cha = self.cacheDist.diff(pair)
-        result = self.worker.diff([str(oldA), str(newA), "-"])
+        result = self.worker.diff([oldA, newA])
         result.save(cha)
         result.ensure().save(self.dist.diff(pair))
 
         env.logger.info(f"Report stdlib {str(pair)}")
         rep = self.cacheDist.report(pair)
-        result = self.worker.report([str(cha), "-"])
+        result = self.worker.report([cha])
         result.save(rep)
         result.ensure().save(self.dist.report(pair))
 

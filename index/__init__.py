@@ -1,7 +1,7 @@
-from contextlib import contextmanager
 import logging
-from pathlib import Path
 import sys
+from contextlib import contextmanager
+from pathlib import Path
 from typing import override
 
 LOGGING_FORMAT = "[%(levelname)s] %(message)s"
