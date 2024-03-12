@@ -15,13 +15,25 @@ from index.processor import ProcessDB
 from . import env
 from .processor import DistPathBuilder, ProcessDB, Processor
 
-IGNORED_MODULES = {"LICENSE", "site-packages"}
+
+def isIgnoredTopModule(name: str):
+    if name in {"LICENSE", "site-packages", "lib-dynload", "__pycache__"}:
+        return True
+    if "-" in name or "." in name:
+        return True
+    if name.startswith("_sysconfigdata_"):
+        return True
+    return False
 
 
 def getTopModules(path: Path):
     yield "builtins"
     for p in path.glob("*"):
-        if p.stem in IGNORED_MODULES:
+        if isIgnoredTopModule(p.stem):
+            continue
+        if p.is_dir() and not (p / "__init__.py").is_file():
+            continue
+        if p.is_file() and not p.suffix.startswith(".py"):
             continue
         yield p.stem
 
