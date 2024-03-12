@@ -5,10 +5,6 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,8 +14,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        persist-credentials: false
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
       with:
@@ -91,11 +85,6 @@ jobs:
       uses: actions/upload-pages-artifact@v3
       with:
         path: ./dist
-    #   uses: JamesIves/github-pages-deploy-action@v4
-    #   with:
-    #     token: ${{ secrets.PA_TOKEN }}
-    #     branch: gh-pages
-    #     folder: ./dist
   deploy:
     needs: build
     permissions:

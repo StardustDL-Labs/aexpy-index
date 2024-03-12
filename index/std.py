@@ -10,8 +10,6 @@ from aexpy.models import ApiDescription, Release, ReleasePair
 from aexpy.producers import ProduceState
 from aexpy.tools.workers import AexPyResult, AexPyWorker
 
-from index.processor import ProcessDB
-
 from . import env
 from .processor import DistPathBuilder, ProcessDB, Processor
 
